@@ -1,9 +1,10 @@
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 torchrun --nproc_per_node 8 supersived_finetuning.py \
+# CUDA_VISIBLE_DEVICES=1 torchrun --nproc_per_node 1 supervised_finetuning.py \
+python3 supervised_finetuning.py \
     --model_name_or_path Qwen/Qwen2.5-0.5B-Instruct \
-    --train_file_dir ./data/finetune \
-    --validation_file_dir ./data/finetune \
+    --train_file_dir /home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/datasets \
+    --validation_file_dir /home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/datasets \
     --cache_dir ./model \
-    --device_map None \
+    --device_map "cuda" \
     --use_peft False \
     --per_device_train_batch_size 2 \
     --do_train \
@@ -32,5 +33,5 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 torchrun --nproc_per_node 8 supersived_fine
     --ddp_find_unused_parameters False \
     --gradient_checkpointing True \
     --template_name chatglm3 \
-    --deepspeed ./zero2.json \
+    # --deepspeed ./zero2.json \
     --bf16
