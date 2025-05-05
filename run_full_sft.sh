@@ -1,20 +1,24 @@
-# CUDA_VISIBLE_DEVICES=1 torchrun --nproc_per_node 1 supervised_finetuning.py \
-python3 supervised_finetuning.py \
+# python3 supervised_finetuning.py \
+CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node 2 supervised_finetuning.py \
     --model_name_or_path Qwen/Qwen2.5-0.5B-Instruct \
-    --train_file_dir /home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/datasets \
-    --validation_file_dir /home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/datasets \
+    --train_file_dir /home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/tool_instruct \
+    --validation_file_dir /home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/tool_instruct \
     --cache_dir ./model \
     --device_map "cuda" \
-    --use_peft False \
-    --per_device_train_batch_size 2 \
+    --use_peft True \
+    --lora_rank 8 \
+    --lora_alpha 32 \
+    --lora_dropout 0.05 \
+    --per_device_train_batch_size 16 \
     --do_train \
     --num_train_epochs 3 \
-    --per_device_eval_batch_size 2 \
+    --per_device_eval_batch_size 16 \
     --max_train_samples -1 \
     --learning_rate 3e-5 \
     --warmup_ratio 0.2 \
     --model_max_length 2048 \
     --weight_decay 0.01 \
+    --logging_dir ./runs \
     --logging_strategy steps \
     --logging_steps 1 \
     --save_steps 400 \
@@ -33,5 +37,5 @@ python3 supervised_finetuning.py \
     --ddp_find_unused_parameters False \
     --gradient_checkpointing True \
     --template_name chatglm3 \
-    # --deepspeed ./zero2.json \
+    --deepspeed ./zero2.json \
     --bf16

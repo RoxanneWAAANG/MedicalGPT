@@ -130,3 +130,5 @@ dmypy.json
 
 .idea/
 model/
+runs/
+outputs-full-sft-v1
