@@ -113,11 +113,11 @@ def save_to_jsonl(data, filename):
 
 # Run
 if __name__ == "__main__":
-    input_dir = "/path/to/your/txt_folder"  # 🔁 Replace with your real directory
+    input_dir = "/path/to/your/txt_folder"
     output_path = "llavarad_report_dataset.json"
 
     clinical_texts = load_clinical_texts_from_txt_dir(input_dir, max_samples=1000)
     dataset = generate_dataset(clinical_texts, total_samples=5000)
     save_to_jsonl(dataset, output_path)
 
-    print(f"✅ Saved LLaVA-Rad instruction dataset with {len(dataset)} samples to '{output_path}'")
+    print(f"Saved LLaVA-Rad instruction dataset with {len(dataset)} samples to '{output_path}'")
