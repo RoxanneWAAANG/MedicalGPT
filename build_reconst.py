@@ -79,7 +79,7 @@ def generate_rag_instruction(id_num, anatomy, condition):
             },
             {
                 "from": "gpt",
-                "thoughts": f"To answer this, I should retrieve reliable medical knowledge about {condition} using HealthGPT.",
+                "thoughts": f"To answer this, I should reconstruct the image about {condition} using HealthGPT.",
                 "actions": [
                     {
                         "API_name": "HealthGPT",
@@ -88,7 +88,7 @@ def generate_rag_instruction(id_num, anatomy, condition):
                         }
                     }
                 ],
-                "value": f"I will use HealthGPT to retrieve relevant medical knowledge about {condition}."
+                "value": f"I will use HealthGPT to reconstruct the image about {condition}."
             },
             {
                 "from": "gpt",
