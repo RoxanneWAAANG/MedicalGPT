@@ -1,19 +1,27 @@
-import random
-import pandas as pd
-
 import json
 
-# Paths
-input_path = "./tool_instruct/llava_sum_dataset.jsonl"
-output_path = "./tool_instruct/llava_sum_sample.json"
+INPUT_PATH = '/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/mimic-cxr-5k/annotation.json'
+OUTPUT_PATH = 'output.json'
 
-# Read first line of the JSONL file
-with open(input_path, 'r', encoding='utf-8') as fin:
-    first_line = fin.readline().strip()
+def main():
+    # Load the JSON
+    with open(INPUT_PATH, 'r', encoding='utf-8') as f:
+        data = json.load(f)
 
-# Parse JSON and write to a new file with indentation for readability
-data = json.loads(first_line)
-with open(output_path, 'w', encoding='utf-8') as fout:
-    json.dump(data, fout, ensure_ascii=False, indent=4)
+    # Slice first five terms
+    if isinstance(data, list):
+        first_five = data[:5]
+    elif isinstance(data, dict):
+        # dict preserves insertion order (Python 3.7+)
+        first_five = dict(list(data.items())[:1])
+    else:
+        raise TypeError(f"Unsupported JSON top-level type: {type(data)}")
 
-print(f"Saved first sample to '{output_path}'")
+    # Write out the slice
+    with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
+        json.dump(first_five, f, ensure_ascii=False, indent=2)
+
+    print(f"Wrote first five terms to {OUTPUT_PATH!r}")
+
+if __name__ == '__main__':
+    main()

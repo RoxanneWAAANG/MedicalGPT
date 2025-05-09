@@ -1,123 +1,120 @@
 import json
 import random
-from tqdm import tqdm
-import os
+from tqdm import tqdm # This import is present in your original code but not used in the snippet, ensure it's needed or remove.
 
-# Diverse clinical indications
-indications = [
-    "chest pain and shortness of breath",
-    "persistent cough and fever",
-    "abdominal discomfort and nausea",
-    "headache following minor trauma",
-    "history of hypertension and dizziness",
-    "metastatic melanoma, presenting with confusion and somnolence",
-    "postoperative checkup after CABG surgery",
-    "evaluation for pulmonary embolism",
-    "routine follow-up for known lung nodule",
-    "neurological symptoms and visual disturbances",
-    "severe headache and loss of balance",
-    "fever and hypoxia in a COVID-19 patient",
-    "seizures in a patient with brain metastasis",
-    "baseline scan for cancer staging",
-    "abdominal mass evaluation on follow-up"
+INPUT_FILE = "/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/mimic-cxr-5k/annotation.json"
+OUTPUT_FILE = "./tool_instruct/llava_rad_rg_dataset.jsonl"
+MAX_SAMPLES  = 5000
+MODALITIES  = {"X-RAY", "CT", "MRI", "US"}
+
+instruction_templates = [
+    "You are a radiology assistant. Given the following {modality} image, generate a comprehensive radiology report detailing all pertinent findings.",
+    "As a radiologist, review the {modality} scan provided and write a detailed diagnostic report covering every notable feature.",
+    "Examine the {modality} image and produce a thorough radiology report that includes impressions and observations.",
+    "Based on the {modality} image below, create an in-depth medical report describing all significant findings.",
+    "Generate a detailed radiology report for the given {modality} image, highlighting any abnormalities and normal structures.",
+    "Review the provided {modality} scan and write a professional radiology report with observations, conclusions, and recommendations.",
+    "Interpret the {modality} image and draft a comprehensive report that covers anatomy, pathology, and clinical impressions.",
+    "Analyze the {modality} image and generate a structured radiology report including findings, impressions, and suggestions.",
+    "You are tasked with interpreting this {modality} image; write a detailed report summarizing your findings and impressions.",
+    "Provide a full radiology report for the following {modality} image, noting all abnormalities and relevant normal anatomy.",
+    "As a diagnostic radiologist, examine the {modality} scan and compose a detailed report of your findings.",
+    "Evaluate the {modality} image and produce a radiology report that includes critical observations and potential diagnoses.",
+    "Using the {modality} image provided, write a detailed narrative report covering all key findings.",
+    "Draft a radiology report for the attached {modality} scan, describing normal and abnormal findings in detail.",
+    "You are reviewing a {modality} image: generate a comprehensive report including descriptions of any lesions and normal structures.",
+    "Create a structured radiology report for the given {modality} image, with sections for findings, impressions, and recommendations.",
+    "Interpret and report on the {modality} image below, detailing pathology and normal anatomy.",
+    "Write a professional radiology report for the following {modality} scan, summarizing key observations and impressions.",
+    "Compose a detailed diagnostic report for the provided {modality} image, focusing on clinically relevant findings.",
+    "Analyze the {modality} image and generate an organized radiology report covering anatomy, pathology, and clinical impressions.",
+    "Produce an exhaustive radiology report from the {modality} image, outlining all significant observations.",
+    "Given the following {modality} scan, write a detailed report highlighting abnormalities and normal variants.",
+    "Interpret the {modality} image and draft a comprehensive radiology report including findings and recommendations.",
+    "Provide an expert radiology report based on the attached {modality} scan, covering all pertinent details.",
+    "You have a {modality} image: produce a detailed diagnostic report that includes descriptive findings and impressions.",
+    "Create a full radiology report for the given {modality} image, clearly outlining any pathologic findings.",
+    "Examine the attached {modality} scan and write a clinical radiology report covering observations and impressions.",
+    "Write a detailed radiology report for this {modality} image, describing both normal and abnormal findings.",
+    "Interpret and report on the {modality} image below; provide a comprehensive findings and impressions section.",
+    "Compose an analytical radiology report for the given {modality} scan with detailed findings.",
+    "Provide a narrative radiology report for the attached {modality} image, noting all important findings.",
+    "Review the {modality} scan and generate a structured report including impressions and recommendations.",
+    "Based on the {modality} image, write a concise yet thorough radiology report summarizing findings.",
+    "Analyze the provided {modality} image and produce a detailed report for clinical decision-making.",
+    "Generate a radiology report for the given {modality} scan, emphasizing any critical findings.",
+    "As a radiologist, write a detailed report covering the anatomy and pathology visible in this {modality} image.",
+    "Compose a clinical radiology report for the attached {modality} image, detailing normal and abnormal structures.",
+    "Evaluate the {modality} scan and provide a full radiology report including impressions.",
+    "Create a detailed diagnostic report for this {modality} image, with clear descriptions of findings.",
+    "Interpret the {modality} scan and draft a comprehensive radiology report including clinical recommendations.",
+    "Provide an expert-level radiology report for the given {modality} image, covering all relevant observations.",
+    "You are reviewing a {modality} image; generate a report with sections for findings, impression, and recommendation.",
+    "Draft a detailed radiology report for the following {modality} scan, noting any significant pathology.",
+    "Examine the {modality} image and write a structured radiology report with clear findings.",
+    "Produce a detailed clinical report based on this {modality} image, covering both normal and pathological features.",
+    "Based on the attached {modality} scan, compose a comprehensive radiology report for clinical use.",
+    "Generate a structured radiology report from the given {modality} image, including findings and impressions.",
+    "Interpret and report on this {modality} scan, providing a detailed diagnostic summary.",
+    "Create a professional radiology report for the following {modality} image, highlighting key findings.",
+    "Write a thorough radiology report for the attached {modality} scan, covering diagnosis and impressions."
 ]
 
-# Imaging modalities
-modalities = ["X-ray", "MRI", "CT", "Ultrasound"]
+def transform(record, idx):
+    image_path = record["image_path"][0]
+    report_text = record["report"]
 
-# Radiology report generation prompt templates (15 total)
-report_generation_prompts = [
-    "<image>\nDescribe the findings on this radiology image for a patient presenting with {}.",
-    "<image>\nProvide a radiologist-style report given the indication: {}.",
-    "<image>\nWhat abnormalities can be identified in this scan performed due to {}?",
-    "<image>\nGenerate a structured radiology report for this case. Indication: {}.",
-    "<image>\nEvaluate the image findings for a patient with {} using {} imaging.",
-    "<image>\nWrite a radiology interpretation based on this {} image. The patient has {}.",
-    "<image>\nGiven the clinical presentation of {}, describe the key imaging findings.",
-    "<image>\nCreate a brief findings summary for a {} scan taken due to {}.",
-    "<image>\nImaging interpretation requested for {} symptoms. Provide detailed observations.",
-    "<image>\nRadiologist review requested for a case involving {}. Document the findings.",
-    "<image>\nSummarize the imaging abnormalities based on the following clinical scenario: {}.",
-    "<image>\nPlease read this {} image and provide a concise findings report. Indication: {}.",
-    "<image>\nWhat are the radiological findings in a patient evaluated for {}?",
-    "<image>\nGenerate a radiology 'Findings' section for the following clinical presentation: {}.",
-    "<image>\nInterpret this diagnostic image acquired for {} and describe the observations."
-]
+    # Convert the set to a list before using random.choice
+    modalities_list = list(MODALITIES)
+    modality = random.choice(modalities_list)
 
-# Load mock findings from .txt files
-def load_clinical_texts_from_txt_dir(folder_path, max_samples=5000):
-    texts = []
-    files = sorted(os.listdir(folder_path))
-    for file in files:
-        if file.endswith(".txt"):
-            with open(os.path.join(folder_path, file), 'r') as f:
-                text = f.read().strip()
-                if text:
-                    texts.append(text)
-            if len(texts) >= max_samples:
-                break
-    return texts
+    prompt = random.choice(instruction_templates).format(modality=modality)
 
-# Build one instruction sample
-def generate_llava_rad_sample(idx, text):
-    modality = random.choice(modalities)
-    indication = random.choice(indications)
-    prompt_template = random.choice(report_generation_prompts)
-
-    # Use modality if template needs two args
-    try:
-        prompt = prompt_template.format(indication, modality)
-    except:
-        prompt = prompt_template.format(indication)
-
-    return {
-        "id": f"llavarad_report_{idx}",
-        "conversations": [
-            {
-                "from": "human",
-                "value": prompt
-            },
-            {
-                "from": "gpt",
-                "thoughts": f"Calling LLaVA-Rad to generate a radiology report for {modality} image.",
-                "actions": [
-                    {
-                        "API_name": "LLaVA-Rad",
-                        "API_params": {
-                            "task": "report_generation",
-                            "modality": modality,
-                            "indication": indication,
-                            "image": "<image_placeholder>"
-                        }
-                    }
-                ],
-                "value": f"Generating {modality} findings using LLaVA-Rad..."
-            },
-            {
-                "from": "gpt",
-                "value": f"{text}"
-            }
-        ]
+    human = {
+        "from": "human",
+        "value": prompt
     }
 
-# Batch generate dataset
-def generate_dataset(clinical_texts, total_samples=5000):
-    return [generate_llava_rad_sample(i, clinical_texts[i % len(clinical_texts)]) for i in tqdm(range(total_samples))]
+    gpt_call = {
+        "from": "gpt",
+        "thoughts": "User wants a radiology report; I'll call the LLaVA-Rad tool.",
+        "actions": [
+            {
+                "API_name": "LLaVA-Rad",
+                "API_params": { "image_path": image_path }
+            }
+        ],
+        "value": "Calling LLaVA-Rad to generate the radiology report..."
+    }
 
-# Save to JSONL
-def save_to_jsonl(data, filename):
-    with open(filename, "w") as f:
-        for item in data:
-            json.dump(item, f)
-            f.write("\n")
+    gpt_out = {
+        "from": "gpt",
+        "value": report_text
+    }
 
-# Run
+    return {
+        "id": f"rad_sample_{idx}",
+        "conversations": [human, gpt_call, gpt_out]
+    }
+
+def build_dataset(input_file, output_file, max_samples):
+    with open(input_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    all_records = data.get("train", []) + data.get("validation", []) + data.get("test", [])
+    count = 0
+
+    # Consider using tqdm here if all_records can be very large
+    # for record in tqdm(all_records, desc="Processing records"):
+    with open(output_file, "w", encoding="utf-8") as out:
+        for record in all_records:
+            if count >= max_samples:
+                break
+            entry = transform(record, count)
+            out.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            count += 1
+
+    print(f"Wrote {count} records to {output_file!r}")
+
 if __name__ == "__main__":
-    input_dir = "/path/to/your/txt_folder"
-    output_path = "llavarad_report_dataset.json"
-
-    clinical_texts = load_clinical_texts_from_txt_dir(input_dir, max_samples=1000)
-    dataset = generate_dataset(clinical_texts, total_samples=5000)
-    save_to_jsonl(dataset, output_path)
-
-    print(f"Saved LLaVA-Rad instruction dataset with {len(dataset)} samples to '{output_path}'")
+    build_dataset(INPUT_FILE, OUTPUT_FILE, MAX_SAMPLES)
