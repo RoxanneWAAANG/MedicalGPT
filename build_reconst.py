@@ -2,7 +2,6 @@ import json
 import random
 from tqdm import tqdm
 
-# Modalities and anatomy options
 modalities = ["MRI", "CT", "X-ray", "Ultrasound"]
 anatomies = ["brain", "chest", "abdomen", "spine", "liver", "heart", "knee"]
 conditions = {
@@ -15,7 +14,6 @@ conditions = {
     "knee": ["ACL tear", "meniscus injury"]
 }
 
-# Diverse user prompts
 instruction_templates = [
     "I was recently diagnosed with {condition}. Can you explain what this is and what I should do next?",
     "Can you tell me more about {condition} and what steps to take after diagnosis?",
