@@ -18,7 +18,42 @@ report_generation_instructions = [
     "Document a radiology-style report for the scenario below.",
     "Create a formatted clinical report for the following patient history.",
     "Write a SOAP-style report based on the provided medical text.",
-    "Generate a comprehensive structured report suitable for recordkeeping."
+    "Generate a comprehensive structured report suitable for recordkeeping.",
+    "Compose a succinct medical report highlighting key observations.",
+    "Convert this clinical abstract into a full diagnostic report.",
+    "Write an imaging findings report from the text below.",
+    "Produce a patient case report in a standard medical format.",
+    "Draft a narrative medical report detailing the findings.",
+    "Create a clinical summary report from the given notes.",
+    "Generate a formal medical report with headings and sections.",
+    "Write a detailed report of the examination findings.",
+    "Produce a radiology impression report from this input.",
+    "Compose a pathology-style report based on the provided text.",
+    "Create a patient consultation report summarizing recommendations.",
+    "Write a structured summary report suitable for EMR entry.",
+    "Generate a template-driven medical report from the case notes.",
+    "Draft a clinician-friendly report interpreting the findings.",
+    "Produce a report outlining diagnosis and plan from this summary.",
+    "Compose a complete medical report with diagnosis, findings, and plan.",
+    "Convert these clinical observations into a diagnostic report.",
+    "Write a standardized report for medical record documentation.",
+    "Generate a follow-up report based on the patient's history.",
+    "Produce an admission report summarizing presenting problems.",
+    "Draft a comprehensive health report from the clinical summary.",
+    "Create a detailed exam report including impressions and recommendations.",
+    "Write a clinical case report in a structured medical format.",
+    "Generate an outpatient visit report from the provided data.",
+    "Compose a concise report highlighting diagnostic impressions.",
+    "Create a professional medical report suitable for peer review.",
+    "Write a formatted case study report based on the clinical abstract.",
+    "Produce a discharge report covering diagnosis, treatment, and follow-up.",
+    "Draft a multidisciplinary medical report summarizing all findings.",
+    "Generate an operative report based on the surgical summary.",
+    "Compose a report for a tumor board presentation using the case details.",
+    "Create a report summarizing imaging, labs, and clinical assessment.",
+    "Write a research-style case report from the clinical vignette.",
+    "Produce a structured report for quality-assurance review.",
+    "Draft a medical report with an emphasis on key learning points."
 ]
 
 def load_clinical_texts_from_txt_dir(folder_path, max_samples=5000):
@@ -56,7 +91,7 @@ def generate_report_sample(idx, text):
             },
             {
                 "from": "gpt",
-                "value": "Here is the generated medical report based on the text. [REPORT_OUTPUT]"
+                "value": "Here is the generated medical report based on the text. <output_report>"
             }
         ]
     }
