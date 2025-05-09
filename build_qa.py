@@ -8,38 +8,36 @@ MAX_SAMPLES = 10000
 def transform_example(example, idx):
     human_text = f"{example['instruction']}\n{example['input']}"
     return {
-        "id":       f"pmc_sample_{idx}",
+        "id": f"pmc_sample_{idx}",
         "conversations": [
             {
-                "from":  "human",
+                "from": "human",
                 "value": human_text
             },
             {
-                "from":     "gpt",
+                "from": "gpt",
                 "thoughts": "To answer this question and provide a detailed rationale, I'll call the PMC-LLaMA model.",
                 "actions":  [
                     {
-                        "API_name":   "PMC-LLaMA",
+                        "API_name": "PMC-LLaMA",
                         "API_params": {
                             "query": example["input"]
                         }
                     }
                 ],
-                "value":    "Calling PMC-LLaMA to get the answer and rationale..."
+                "value": "Calling PMC-LLaMA to get the answer and rationale..."
             },
             {
-                "from":  "gpt",
+                "from": "gpt",
                 "value": example["output"]
             }
         ]
     }
 
 def build_instruction_dataset(input_path, output_path, max_samples):
-    # Load your 50k+ samples (assumes it's a single big JSON array)
     with open(input_path, "r", encoding="utf-8") as f:
         examples = json.load(f)
 
-    # Take only up to max_samples
     limited = examples[:max_samples]
 
     with open(output_path, "w", encoding="utf-8") as out:
