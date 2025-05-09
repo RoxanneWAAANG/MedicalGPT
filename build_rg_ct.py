@@ -1,6 +1,6 @@
 import json
 import random
-from tqdm import tqdm # This import is present in your original code but not used in the snippet, ensure it's needed or remove.
+from tqdm import tqdm
 
 INPUT_FILE = "/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/mimic-cxr-5k/annotation.json"
 OUTPUT_FILE = "./tool_instruct/llava_rad_rg_dataset.jsonl"
@@ -64,7 +64,6 @@ def transform(record, idx):
     image_path = record["image_path"][0]
     report_text = record["report"]
 
-    # Convert the set to a list before using random.choice
     modalities_list = list(MODALITIES)
     modality = random.choice(modalities_list)
 
@@ -104,8 +103,6 @@ def build_dataset(input_file, output_file, max_samples):
     all_records = data.get("train", []) + data.get("validation", []) + data.get("test", [])
     count = 0
 
-    # Consider using tqdm here if all_records can be very large
-    # for record in tqdm(all_records, desc="Processing records"):
     with open(output_file, "w", encoding="utf-8") as out:
         for record in all_records:
             if count >= max_samples:
