@@ -3,13 +3,11 @@ import os
 import random
 from tqdm import tqdm
 
-# Paths to input paragraphs and ground-truth summaries
 INPUT_DIR = "/home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/sumpubmed/line_text"
 SUMMARY_DIR = "/home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/sumpubmed/abstract"
 OUTPUT_FILE = "./tool_instruct/llava_sum_dataset.jsonl"
 MAX_SAMPLES = 5000
 
-# Instruction templates for summarization tasks
 summarization_instructions = [
     "Summarize the key findings of this medical passage.",
     "Generate a concise overview of the medical abstract.",
@@ -44,14 +42,37 @@ summarization_instructions = [
     "Write a brief summary capturing essential laboratory findings.",
     "Generate a concise overview of symptoms and treatment plans.",
     "Summarize the clinical significance of the findings below.",
-    "Offer a one-sentence summary of the passage’s main conclusion."
+    "Offer a one-sentence summary of the passage’s main conclusion.",
+    "Craft a high-level overview of this patient’s journey and outcomes.",
+    "Produce a brief summary emphasizing the study’s purpose and conclusion.",
+    "Capture the main imaging findings in a few sentences.",
+    "Summarize the patient’s history, exam, and plan in a concise paragraph.",
+    "Generate a layperson-friendly summary of this medical text.",
+    "Provide a clinical take-home points summary.",
+    "Distill this medical abstract into three key sentences.",
+    "Summarize the treatment plan and follow-up instructions.",
+    "Create a summary that highlights safety and efficacy results.",
+    "Produce an executive summary of this clinical trial report.",
+    "Write a short summary of the patient’s vital signs and labs.",
+    "Generate a focused summary on the diagnostic imaging findings.",
+    "Summarize the procedural steps and outcomes outlined below.",
+    "Provide an abbreviated summary of this medical case.",
+    "Create a concise summary for rapid clinical decision-making.",
+    "Summarize the adverse events and management strategies.",
+    "Write a brief summary of the study design and endpoints.",
+    "Produce a summary emphasizing changes from baseline values.",
+    "Summarize the follow-up recommendations in bullet points.",
+    "Capture the essential diagnostic criteria in a short summary.",
+    "Generate a summary that outlines risk factors and prevention.",
+    "Summarize the pathophysiology and key clinical markers.",
+    "Provide a summary focusing on patient symptoms and response.",
+    "Write a succinct summary of the research hypothesis and results."
 ]
 
-# Load texts and summaries, pairing by matching numeric IDs after underscore
 def load_pairs(input_dir, summary_dir, max_samples=None):
     pairs = []
     summaries = {}
-    # Load ground truth summaries into a dict by numeric ID
+
     for fname in os.listdir(summary_dir):
         if not fname.endswith('.txt'): continue
         basename = os.path.splitext(fname)[0]
@@ -60,7 +81,7 @@ def load_pairs(input_dir, summary_dir, max_samples=None):
         num = parts[-1]
         with open(os.path.join(summary_dir, fname), 'r', encoding='utf-8') as f:
             summaries[num] = f.read().strip()
-    # Match paragraphs to summaries by numeric ID
+
     for fname in sorted(os.listdir(input_dir)):
         if not fname.endswith('.txt'): continue
         basename = os.path.splitext(fname)[0]
@@ -68,7 +89,7 @@ def load_pairs(input_dir, summary_dir, max_samples=None):
         if len(parts) < 2: continue
         num = parts[-1]
         if num not in summaries: continue
-        # load paragraph and corresponding summary
+
         with open(os.path.join(input_dir, fname), 'r', encoding='utf-8') as f:
             paragraph = f.read().strip()
         summary = summaries[num]
@@ -77,7 +98,6 @@ def load_pairs(input_dir, summary_dir, max_samples=None):
             break
     return pairs
 
-# Generate a single RAG-style summarization example
 def generate_sample(idx, key, paragraph, summary):
     instruction = random.choice(summarization_instructions)
     human_value = f"{instruction}\n\n{paragraph}"
@@ -95,7 +115,6 @@ def generate_sample(idx, key, paragraph, summary):
         ]
     }
 
-# Main script: build and save dataset
 if __name__ == '__main__':
     random.seed(42)
     pairs = load_pairs(INPUT_DIR, SUMMARY_DIR, max_samples=MAX_SAMPLES)
@@ -103,7 +122,6 @@ if __name__ == '__main__':
     dataset = []
     for idx, (key, paragraph, summary) in enumerate(tqdm(pairs, desc='Building samples')):
         dataset.append(generate_sample(idx, key, paragraph, summary))
-    # Write to JSONL
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as fw:
         for entry in dataset:
             json.dump(entry, fw, ensure_ascii=False)
