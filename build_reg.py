@@ -55,7 +55,7 @@ PROMPT_TEMPLATES = [
 
 def make_record(idx):
     modality  = random.choice(MODALITIES)
-    slice_idx = random.randint(0, 99)
+    # slice_idx = random.randint(0, 99)
     prompt    = random.choice(PROMPT_TEMPLATES).format(
         fixed="<fixed_image>",
         moving="<moving_image>",
