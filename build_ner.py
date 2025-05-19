@@ -1,6 +1,5 @@
 import json
 import random
-import glob
 from tqdm import tqdm
 
 INPUT_FILE   = "/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/RaTE-NER/train_span.json"
@@ -57,34 +56,111 @@ instruction_templates = [
     "Identify and label entity tokens in the radiology note:",
 ]
 
+answer_templates = [
+    "Here is the entity breakdown:\n{entities}",
+    "Below are the entities I identified:\n{entities}",
+    "These are the tokens and their corresponding categories:\n{entities}",
+    "Entities detected:\n{entities}",
+    "Here are the labeled medical terms:\n{entities}",
+    "The note contains the following entities:\n{entities}",
+    "Token-level annotations are as follows:\n{entities}",
+    "I found these entities in the report:\n{entities}",
+    "Entity tagging results:\n{entities}",
+    "Summary of entities:\n{entities}",
+    "I've categorized the tokens like this:\n{entities}",
+    "Entities extracted from the sentence:\n{entities}",
+    "Here is the complete list of entities:\n{entities}",
+    "Annotated entities:\n{entities}",
+    "Below is the entity list with labels:\n{entities}",
+    "Findings — entities by type:\n{entities}",
+    "This is the entity mapping:\n{entities}",
+    "Token annotations:\n{entities}",
+    "Here are the recognized entities:\n{entities}",
+    "Entity extraction complete:\n{entities}",
+    "The following entities were detected:\n{entities}",
+    "Entity recognition output:\n{entities}",
+    "I've highlighted each entity below:\n{entities}",
+    "Detailed entity list:\n{entities}",
+    "Here are the classified terms:\n{entities}",
+    "Entities present in the text:\n{entities}",
+    "Medical entity labels:\n{entities}",
+    "Here's a breakdown of the entities found:\n{entities}",
+    "Identified entities:\n{entities}",
+    "Entity results:\n{entities}",
+    "These terms have been labeled:\n{entities}",
+    "Entity analysis:\n{entities}",
+    "The detected entities are listed below:\n{entities}",
+    "I've listed all entities with their labels:\n{entities}",
+    "Entity report:\n{entities}",
+    "Complete entity annotation:\n{entities}",
+    "Here is the token classification:\n{entities}",
+    "Entities and their types:\n{entities}",
+    "Recognized medical entities:\n{entities}",
+    "Token-by-token entity mapping:\n{entities}",
+]
+
+LABEL_MAP = {"Anatomy": "Anatomy", "Abnormality": "Abnormality", "Disease": "Disease"}
+
+def spans_to_entities(tokens, spans):
+    """
+    Convert span indices to a readable bullet list: “token(s) → Label”.
+    Span format in dataset: [start, end, label]
+    """
+    parts = []
+    for start, end, label in spans:
+        text = " ".join(tokens[start : end + 1])
+        parts.append(f"• {text} → {LABEL_MAP.get(label, label)}")
+    return "\n".join(parts) if parts else "• No entities detected"
+
 def transform(record, idx):
     tokens = record["sentences"][0]
     spans  = record["ner"][0]
+
     prompt = random.choice(instruction_templates)
-    human = {"from": "human", "value": f"{prompt}\n\n{' '.join(tokens)}"}
-    gpt_call = {"from": "gpt", "thoughts": "To extract the medical entities, I'll call the RaTE-NER tool.",
-                "actions": [{"API_name": "RaTE-NER", "API_params": {"tokens": tokens}}],
-                "value": "Calling RaTE-NER to extract entities..."}
-    gpt_out = {"from": "gpt", "value": json.dumps(spans, ensure_ascii=False)}
-    
+    human  = {
+        "from": "human",
+        "value": f"{prompt}\n\n{' '.join(tokens)}"
+    }
+
+    gpt_tool_call = {
+        "from": "gpt",
+        "thoughts": "To extract the medical entities, I'll call the RaTE-NER tool.",
+        "actions": [{
+            "API_name": "RaTE-NER",
+            "API_params": {"tokens": tokens}
+        }],
+        "value": "Calling RaTE-NER to extract entities..."
+    }
+
+    tool_output = {
+        "from": "gpt",
+        "value": json.dumps(spans, ensure_ascii=False)
+    }
+
+    pretty_entities = spans_to_entities(tokens, spans)
+    friendly_reply  = random.choice(answer_templates).format(entities=pretty_entities)
+    gpt_answer = {
+        "from": "gpt",
+        "value": friendly_reply
+    }
+
     return {
-            "id": f"ner_sample_{idx}",
-            "conversations": [
-                human,
-                gpt_call,
-                gpt_out
-                ]
-            }
+        "id": f"ner_sample_{idx}",
+        "conversations": [human, gpt_tool_call, tool_output, gpt_answer]
+    }
 
 def build_dataset(input_path, output_path, max_samples=MAX_SAMPLES):
-    with open(input_path, "r", encoding="utf-8") as fin, open(output_path, "w", encoding="utf-8") as fout:
-        for idx, line in enumerate(tqdm(fin, desc="Building NER instruct data")):
+    with open(input_path, "r", encoding="utf-8") as fin, \
+         open(output_path, "w", encoding="utf-8") as fout:
+
+        for idx, line in enumerate(tqdm(fin, desc="Building NER instruction data")):
             if idx >= max_samples:
                 break
             record = json.loads(line)
-            rec = transform(record, idx)
-            fout.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    print(f"Wrote up to {MAX_SAMPLES} NER examples to {output_path!r}")
+            conv = transform(record, idx)
+            fout.write(json.dumps(conv, ensure_ascii=False) + "\n")
+
+    print(f"Wrote {min(idx + 1, max_samples)} examples to '{output_path}'")
 
 if __name__ == "__main__":
     build_dataset(INPUT_FILE, OUTPUT_FILE)
