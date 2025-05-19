@@ -29,7 +29,6 @@ instruction_templates = [
     "Write a professional ophthalmic report for the following {modality} image, summarizing key observations and impressions.",
     "Compose a detailed diagnostic report for the provided {modality} scan, focusing on clinically relevant findings.",
     "Analyze the {modality} image and generate an organized report covering anatomy, pathology, and clinical impressions.",
-    # new 35
     "Assess the {modality} scan and deliver a meticulous report highlighting vitreomacular interface disorders and any subretinal fluid.",
     "Review this {modality} image and craft a comprehensive summary emphasizing retinal pigment epithelium changes and drusen presence.",
     "As an OCT analyst, interpret the {modality} scan and compile a report outlining retinal layer integrity and any cystoid spaces.",
