@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 INPUT_FILE  = Path("/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/mimic-cxr-5k/annotation.json")
 OUTPUT_FILE = Path("./tool_instruct/llava_rad_rg_dataset.jsonl")
-MODALITIES  = {"X-RAY", "CT", "MRI", "US"}
+MODALITIES = ["X-RAY", "CT", "MRI", "US"]
 
 instruction_templates = [
     "You are a radiology assistant. Given the following {modality} image, generate a comprehensive radiology report detailing all pertinent findings.",
