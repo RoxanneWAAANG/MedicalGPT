@@ -1,11 +1,11 @@
 import json
+import random
 from pathlib import Path
 from tqdm import tqdm
 
-BASE_DIR   = Path("/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/deepeyenet/deepeyenet")
-INPUT_JSON = BASE_DIR / "DeepEyeNet_train.json"
-OUTPUT_JSONL = "./tool_instruct/svlms_fundus_dataset.jsonl"
-MAX_SAMPLES  = 5000
+BASE_DIR    = Path("/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/deepeyenet/deepeyenet")
+INPUT_FILE  = BASE_DIR / "DeepEyeNet_train.json"
+OUTPUT_FILE = Path("./tool_instruct/svlms_fundus_dataset.jsonl")
 MODALITY     = "OCT"
 
 instruction_templates = [
@@ -81,17 +81,61 @@ instruction_templates = [
     "Interpret the {modality} image for ocular oncology screening; document suspicious masses and referral urgency."
 ]
 
-def deep_eyenet_to_records() -> list:
-    with open(INPUT_JSON, "r", encoding="utf-8") as f:
+answer_templates = [
+    "Here is the comprehensive OCT report:\n{report}",
+    "Below is the detailed OCT interpretation:\n{report}",
+    "I have completed the OCT analysis. Report follows:\n{report}",
+    "Diagnostic OCT report:\n{report}",
+    "Here's the structured OCT report with key findings:\n{report}",
+    "The OCT scan has been reviewed. Full report:\n{report}",
+    "Please see the narrative OCT report below:\n{report}",
+    "Final OCT assessment:\n{report}",
+    "Full ophthalmic report for this OCT scan:\n{report}",
+    "Below is the in-depth OCT readout:\n{report}",
+    "Comprehensive findings for this OCT image:\n{report}",
+    "Here's the organized OCT report:\n{report}",
+    "My complete OCT interpretation is as follows:\n{report}",
+    "OCT report with impressions and recommendations:\n{report}",
+    "Detailed OCT findings:\n{report}",
+    "Attached is the finalized OCT report:\n{report}",
+    "Here is the diagnostic note for the OCT scan:\n{report}",
+    "Full text of the OCT report:\n{report}",
+    "Complete OCT summary:\n{report}",
+    "Ophthalmic report (OCT):\n{report}",
+    "Below find the OCT evaluation:\n{report}",
+    "Here is the clinical OCT report:\n{report}",
+    "Comprehensive OCT findings and impressions:\n{report}",
+    "The OCT analysis is complete. Report:\n{report}",
+    "Clinical report for the OCT image:\n{report}",
+    "The following OCT report outlines all observations:\n{report}",
+    "My OCT read and conclusions:\n{report}",
+    "OCT diagnostic summary:\n{report}",
+    "Analytical OCT report:\n{report}",
+    "Here's the final OCT diagnostic report:\n{report}",
+    "Full OCT commentary:\n{report}",
+    "Structured OCT assessment:\n{report}",
+    "See the OCT report below:\n{report}",
+    "The OCT image has been interpreted. Findings:\n{report}",
+    "Report generated for the OCT scan:\n{report}",
+    "Below is the detailed assessment of the OCT:\n{report}",
+    "Here's the completed OCT evaluation:\n{report}",
+    "OCT interpretation completed. Report text:\n{report}",
+    "Detailed review of OCT image:\n{report}",
+    "Complete narrative for this OCT scan:\n{report}",
+    "Here is the full OCT diagnostic note:\n{report}",
+]
+
+def load_deepeyenet() -> list:
+    """Load DeepEyeNet JSON and convert to list of dicts with image_path / report."""
+    with INPUT_FILE.open("r", encoding="utf-8") as f:
         raw = json.load(f)
 
     records = []
-    for item in raw:
-        rel_path, meta = next(iter(item.items()))
+    for entry in raw:
+        rel_path, meta = next(iter(entry.items()))
         full_path = str(BASE_DIR / rel_path)
-        report_text = meta.get("clinical-description", "").strip()
-        if not report_text:
-            report_text = meta.get("keywords", "").strip()
+        report_text = (meta.get("clinical-description") or
+                       meta.get("keywords") or "").strip()
 
         records.append({
             "image_path": [full_path],
@@ -100,34 +144,55 @@ def deep_eyenet_to_records() -> list:
     return records
 
 def transform(record: dict, idx: int) -> dict:
-    prompt = instruction_templates[idx % len(instruction_templates)].format(modality=MODALITY)
+    user_prompt = instruction_templates[idx % len(instruction_templates)].format(
+        modality=MODALITY
+    )
+
+    tool_call = {
+        "from": "gpt",
+        "thoughts": "User needs an OCT report; I'll call SpecialistVLMs.",
+        "actions": [
+            {
+                "API_name": "SpecialistVLMs",
+                "API_params": {"image_path": record["image_path"][0]}
+            }
+        ],
+        "value": "Calling SpecialistVLMs to generate the ophthalmic report..."
+    }
+
+    tool_output = {
+        "from": "gpt",
+        "value": record["report"]
+    }
+
+    final_reply = random.choice(answer_templates).format(report=record["report"])
+    assistant_reply = {"from": "gpt", "value": final_reply}
 
     return {
         "id": f"fundus_sample_{idx}",
         "conversations": [
-            {"from": "human", "value": prompt},
-            {
-                "from": "gpt",
-                "thoughts": "User needs a fundus report; I'll call SpecialistVLMs.",
-                "actions": [
-                    {"API_name": "SpecialistVLMs",
-                     "API_params": {"image_path": record["image_path"][0]}}
-                ],
-                "value": "Calling SpecialistVLMs to generate the ophthalmic report..."
-            },
-            {"from": "gpt", "value": record["report"]}
+            {"from": "human", "value": user_prompt},
+            tool_call,
+            tool_output,
+            assistant_reply
         ]
     }
 
-def main():
-    all_records = deep_eyenet_to_records()
-    total = min(len(all_records), MAX_SAMPLES)
+def build_dataset(n_samples: int = 5000,
+                  seed: int = 42,
+                  output_path: Path = OUTPUT_FILE) -> None:
+    random.seed(seed)
+    all_records = load_deepeyenet()
+    total = min(len(all_records), n_samples)
 
-    with open(OUTPUT_JSONL, "w", encoding="utf-8") as out:
-        for idx, rec in tqdm(list(enumerate(all_records[:total])), desc="Building JSONL"):
-            out.write(json.dumps(transform(rec, idx), ensure_ascii=False) + "\n")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as fout:
+        for idx, rec in enumerate(tqdm(all_records[:total],
+                                       desc=f"Building {total} OCT samples")):
+            json.dump(transform(rec, idx), fout, ensure_ascii=False)
+            fout.write("\n")
 
-    print(f"Wrote {total} instruction samples to {OUTPUT_JSONL!r}")
+    print(f"Wrote {total} records to '{output_path}'")
 
 if __name__ == "__main__":
-    main()
+    build_dataset()
