@@ -1,10 +1,10 @@
 import json
 import random
+from pathlib import Path
 from tqdm import tqdm
 
-INPUT_FILE = "/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/mimic-cxr-5k/annotation.json"
-OUTPUT_FILE = "./tool_instruct/llava_rad_rg_dataset.jsonl"
-MAX_SAMPLES  = 5000
+INPUT_FILE  = Path("/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/mimic-cxr-5k/annotation.json")
+OUTPUT_FILE = Path("./tool_instruct/llava_rad_rg_dataset.jsonl")
 MODALITIES  = {"X-RAY", "CT", "MRI", "US"}
 
 instruction_templates = [
@@ -60,58 +60,113 @@ instruction_templates = [
     "Write a thorough radiology report for the attached {modality} scan, covering diagnosis and impressions."
 ]
 
-def transform(record, idx):
+answer_templates = [
+    "Here is the full {modality} report I generated, including key findings:\n{report}",
+    "Below is the detailed radiology report for this {modality} image:\n{report}",
+    "I've completed the interpretation. The {modality} report reads as follows:\n{report}",
+    "Diagnostic report for the provided {modality} scan:\n{report}",
+    "Here's a comprehensive read of the {modality} image:\n{report}",
+    "The structured report for this {modality} study is shown below:\n{report}",
+    "Find the full {modality} report with impressions and observations:\n{report}",
+    "Completed radiology report ({modality}):\n{report}",
+    "Full diagnostic findings for the {modality} image:\n{report}",
+    "Here is the requested {modality} report, covering all significant details:\n{report}",
+    "Below is a narrative report for the {modality} scan:\n{report}",
+    "I have drafted the radiology report for your {modality} image:\n{report}",
+    "Radiology report (modality: {modality}):\n{report}",
+    "Please review the following {modality} report:\n{report}",
+    "Here's the in-depth {modality} interpretation:\n{report}",
+    "My full written report on the {modality} study is below:\n{report}",
+    "The {modality} image has been analyzed. Report:\n{report}",
+    "Comprehensive findings for this {modality} scan:\n{report}",
+    "Here is an organized {modality} report with findings and impressions:\n{report}",
+    "Final {modality} radiology report:\n{report}",
+    "Complete diagnostic summary for the {modality} image:\n{report}",
+    "I've structured the {modality} report as follows:\n{report}",
+    "Kindly review the {modality} report below:\n{report}",
+    "Detailed report for your {modality} study:\n{report}",
+    "The {modality} findings are summarized here:\n{report}",
+    "Attached is the full {modality} radiology report:\n{report}",
+    "My interpretation of the {modality} image is as follows:\n{report}",
+    "Below is the expert-level {modality} report:\n{report}",
+    "Comprehensive {modality} report prepared:\n{report}",
+    "Here is the final radiology report for this {modality} scan:\n{report}",
+    "Full narrative for the {modality} image:\n{report}",
+    "Report generated for {modality} modality:\n{report}",
+    "See the detailed {modality} findings below:\n{report}",
+    "I have completed the {modality} analysis. Report:\n{report}",
+    "Diagnostic impressions for the {modality} study:\n{report}",
+    "Radiology report ({modality}) generated:\n{report}",
+    "A structured {modality} report has been created:\n{report}",
+    "Here is an exhaustive {modality} report:\n{report}",
+    "The report for the {modality} image is ready:\n{report}",
+    "Please find the {modality} report below:\n{report}",
+]
+
+def transform(record: dict, idx: int) -> dict:
+    """Convert one raw record to conversation format."""
     image_path = record["image_path"][0]
     report_text = record["report"]
 
-    modalities_list = list(MODALITIES)
-    modality = random.choice(modalities_list)
+    modality = random.choice(MODALITIES)
+    user_prompt = random.choice(instruction_templates).format(modality=modality)
 
-    prompt = random.choice(instruction_templates).format(modality=modality)
-
-    human = {
-        "from": "human",
-        "value": prompt
-    }
-
-    gpt_call = {
+    tool_call = {
         "from": "gpt",
         "thoughts": "User wants a radiology report; I'll call the LLaVA-Rad tool.",
         "actions": [
             {
                 "API_name": "LLaVA-Rad",
-                "API_params": { "image_path": image_path }
+                "API_params": {"image_path": image_path}
             }
         ],
         "value": "Calling LLaVA-Rad to generate the radiology report..."
     }
 
-    gpt_out = {
+    tool_output = {
         "from": "gpt",
         "value": report_text
     }
 
-    return {
-        "id": f"rad_sample_{idx}",
-        "conversations": [human, gpt_call, gpt_out]
+    friendly_reply = random.choice(answer_templates).format(
+        modality=modality, report=report_text
+    )
+    assistant_reply = {
+        "from": "gpt",
+        "value": friendly_reply
     }
 
-def build_dataset(input_file, output_file, max_samples):
-    with open(input_file, "r", encoding="utf-8") as f:
+    return {
+        "id": f"rad_sample_{idx}",
+        "conversations": [
+            {"from": "human", "value": user_prompt},
+            tool_call,
+            tool_output,
+            assistant_reply
+        ]
+    }
+
+def build_dataset(input_path: Path = INPUT_FILE,
+                  output_path: Path = OUTPUT_FILE,
+                  n_samples: int = 5000,
+                  seed: int = 42) -> None:
+    random.seed(seed)
+
+    with input_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     all_records = data.get("train", []) + data.get("validation", []) + data.get("test", [])
-    count = 0
+    total = min(len(all_records), n_samples)
 
-    with open(output_file, "w", encoding="utf-8") as out:
-        for record in all_records:
-            if count >= max_samples:
-                break
-            entry = transform(record, count)
-            out.write(json.dumps(entry, ensure_ascii=False) + "\n")
-            count += 1
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as fout:
+        for idx, rec in enumerate(tqdm(all_records[:total],
+                                       desc=f"Building {total} radiology samples")):
+            conv = transform(rec, idx)
+            json.dump(conv, fout, ensure_ascii=False)
+            fout.write("\n")
 
-    print(f"Wrote {count} records to {output_file!r}")
+    print(f"Wrote {total} records to '{output_path}'")
 
 if __name__ == "__main__":
-    build_dataset(INPUT_FILE, OUTPUT_FILE, MAX_SAMPLES)
+    build_dataset()
