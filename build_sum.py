@@ -1,12 +1,12 @@
 import json
 import os
 import random
+from pathlib import Path
 from tqdm import tqdm
 
-INPUT_DIR = "/home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/sumpubmed/line_text"
-SUMMARY_DIR = "/home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/sumpubmed/abstract"
-OUTPUT_FILE = "./tool_instruct/llava_sum_dataset.jsonl"
-MAX_SAMPLES = 5000
+INPUT_DIR   = Path("/home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/sumpubmed/line_text")
+SUMMARY_DIR = Path("/home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/sumpubmed/abstract")
+OUTPUT_FILE = Path("./tool_instruct/llava_sum_dataset.jsonl")
 
 summarization_instructions = [
     "Summarize the key findings of this medical passage.",
@@ -42,18 +42,18 @@ summarization_instructions = [
     "Write a brief summary capturing essential laboratory findings.",
     "Generate a concise overview of symptoms and treatment plans.",
     "Summarize the clinical significance of the findings below.",
-    "Offer a one-sentence summary of the passage’s main conclusion.",
-    "Craft a high-level overview of this patient’s journey and outcomes.",
-    "Produce a brief summary emphasizing the study’s purpose and conclusion.",
+    "Offer a one-sentence summary of the passage's main conclusion.",
+    "Craft a high-level overview of this patient's journey and outcomes.",
+    "Produce a brief summary emphasizing the study's purpose and conclusion.",
     "Capture the main imaging findings in a few sentences.",
-    "Summarize the patient’s history, exam, and plan in a concise paragraph.",
+    "Summarize the patient's history, exam, and plan in a concise paragraph.",
     "Generate a layperson-friendly summary of this medical text.",
     "Provide a clinical take-home points summary.",
     "Distill this medical abstract into three key sentences.",
     "Summarize the treatment plan and follow-up instructions.",
     "Create a summary that highlights safety and efficacy results.",
     "Produce an executive summary of this clinical trial report.",
-    "Write a short summary of the patient’s vital signs and labs.",
+    "Write a short summary of the patient's vital signs and labs.",
     "Generate a focused summary on the diagnostic imaging findings.",
     "Summarize the procedural steps and outcomes outlined below.",
     "Provide an abbreviated summary of this medical case.",
@@ -69,61 +69,115 @@ summarization_instructions = [
     "Write a succinct summary of the research hypothesis and results."
 ]
 
-def load_pairs(input_dir, summary_dir, max_samples=None):
-    pairs = []
+answer_templates = [
+    "Here is the concise summary:\n{summary}",
+    "Below is the generated summary:\n{summary}",
+    "I have distilled the passage as follows:\n{summary}",
+    "Summary of the text:\n{summary}",
+    "Here's a brief overview:\n{summary}",
+    "The key points are summarized here:\n{summary}",
+    "Here is your requested summary:\n{summary}",
+    "Completed summary:\n{summary}",
+    "Please review the following summary:\n{summary}",
+    "Here is the distilled content:\n{summary}",
+    "Summary provided below:\n{summary}",
+    "Here's the short synopsis:\n{summary}",
+    "The main ideas are:\n{summary}",
+    "Condensed summary:\n{summary}",
+    "This is the brief summary:\n{summary}",
+    "Generated concise summary:\n{summary}",
+    "The passage has been summarized:\n{summary}",
+    "Key findings summarized below:\n{summary}",
+    "Summary text:\n{summary}",
+    "Here is the core message:\n{summary}",
+    "Brief summary follows:\n{summary}",
+    "Synopsis of the text:\n{summary}",
+    "Essential points:\n{summary}",
+    "Overview:\n{summary}",
+    "Take-home summary:\n{summary}",
+    "Main conclusions:\n{summary}",
+    "Executive summary:\n{summary}",
+    "Here's the digest:\n{summary}",
+    "One-paragraph summary:\n{summary}",
+    "Short summary:\n{summary}",
+    "Summary in plain language:\n{summary}",
+    "Focused summary:\n{summary}",
+    "Compact summary:\n{summary}",
+    "Here is a quick recap:\n{summary}",
+    "Clinical summary:\n{summary}",
+    "Summarized content:\n{summary}",
+    "Here is the abridged version:\n{summary}",
+    "The essence of the text:\n{summary}",
+    "Highlighted points:\n{summary}",
+    "Concise summary output:\n{summary}",
+]
+
+def load_pairs(max_samples: int) -> list[tuple[str, str, str]]:
     summaries = {}
+    for f in SUMMARY_DIR.iterdir():
+        if f.suffix != ".txt": continue
+        key = f.stem.split("_")[-1]
+        summaries[key] = f.read_text(encoding="utf-8").strip()
 
-    for fname in os.listdir(summary_dir):
-        if not fname.endswith('.txt'): continue
-        basename = os.path.splitext(fname)[0]
-        parts = basename.split('_')
-        if len(parts) < 2: continue
-        num = parts[-1]
-        with open(os.path.join(summary_dir, fname), 'r', encoding='utf-8') as f:
-            summaries[num] = f.read().strip()
-
-    for fname in sorted(os.listdir(input_dir)):
-        if not fname.endswith('.txt'): continue
-        basename = os.path.splitext(fname)[0]
-        parts = basename.split('_')
-        if len(parts) < 2: continue
-        num = parts[-1]
-        if num not in summaries: continue
-
-        with open(os.path.join(input_dir, fname), 'r', encoding='utf-8') as f:
-            paragraph = f.read().strip()
-        summary = summaries[num]
-        pairs.append((num, paragraph, summary))
-        if max_samples and len(pairs) >= max_samples:
+    pairs = []
+    for f in sorted(INPUT_DIR.iterdir()):
+        if f.suffix != ".txt": continue
+        key = f.stem.split("_")[-1]
+        if key not in summaries: continue
+        paragraph = f.read_text(encoding="utf-8").strip()
+        if paragraph:
+            pairs.append((key, paragraph, summaries[key]))
+        if len(pairs) >= max_samples:
             break
     return pairs
 
-def generate_sample(idx, key, paragraph, summary):
+def transform(idx: int, key: str, text: str, summary: str) -> dict:
+    """Create a single conversation record."""
     instruction = random.choice(summarization_instructions)
-    human_value = f"{instruction}\n\n{paragraph}"
-    plan_msg = "Using LLaVA to summarize the medical passage."
-    action = {
-        'API_name': 'LLaVA',
-        'API_params': {'task': 'summarization', 'text': paragraph}
+    user_prompt = f"{instruction}\n\n{text}"
+
+    tool_call = {
+        "from": "gpt",
+        "thoughts": "Using LLaVA to summarize the medical passage.",
+        "actions": [
+            {
+                "API_name": "LLaVA",
+                "API_params": {"task": "summarization", "text": text}
+            }
+        ],
+        "value": "Generating medical summary with LLaVA..."
     }
+
+    tool_output = {"from": "gpt", "value": summary}
+
+    final_reply = random.choice(answer_templates).format(summary=summary)
+    assistant_reply = {"from": "gpt", "value": final_reply}
+
     return {
-        'id': f'summ_{key}_{idx}',
-        'conversations': [
-            {'from': 'human', 'value': human_value},
-            {'from': 'gpt', 'thoughts': plan_msg, 'actions': [action], 'value': plan_msg},
-            {'from': 'gpt', 'value': summary}
+        "id": f"summ_{key}_{idx}",
+        "conversations": [
+            {"from": "human", "value": user_prompt},
+            tool_call,
+            tool_output,
+            assistant_reply
         ]
     }
 
-if __name__ == '__main__':
-    random.seed(42)
-    pairs = load_pairs(INPUT_DIR, SUMMARY_DIR, max_samples=MAX_SAMPLES)
-    print(f"Found {len(pairs)} paragraph-summary pairs.")
-    dataset = []
-    for idx, (key, paragraph, summary) in enumerate(tqdm(pairs, desc='Building samples')):
-        dataset.append(generate_sample(idx, key, paragraph, summary))
-    with open(OUTPUT_FILE, 'w', encoding='utf-8') as fw:
-        for entry in dataset:
-            json.dump(entry, fw, ensure_ascii=False)
-            fw.write("\n")
-    print(f"Saved {len(dataset)} summarization samples to '{OUTPUT_FILE}'.")
+def build_dataset(n_samples: int = 5000,
+                  seed: int = 42,
+                  output_path: Path = OUTPUT_FILE) -> None:
+    random.seed(seed)
+    pairs = load_pairs(n_samples)
+    print(f"Loaded {len(pairs)} paragraph-summary pairs.")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as fout:
+        for idx, (key, para, summ) in enumerate(tqdm(pairs, desc="Building summaries")):
+            json.dump(transform(idx, key, para, summ),
+                      fout, ensure_ascii=False)
+            fout.write("\n")
+
+    print(f"Saved {len(pairs)} summarization samples to '{output_path}'")
+
+if __name__ == "__main__":
+    build_dataset()
