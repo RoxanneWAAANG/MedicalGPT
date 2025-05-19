@@ -1,7 +1,11 @@
 import json
 import random
-from tqdm import tqdm
 import os
+from pathlib import Path
+from tqdm import tqdm
+
+INPUT_DIR    = Path("/home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/sumpubmed/line_text")
+OUTPUT_FILE  = Path("/home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/tool_instruct/llava_rg_dataset.jsonl")
 
 report_generation_instructions = [
     "Generate a medical report based on the findings below.",
@@ -56,59 +60,108 @@ report_generation_instructions = [
     "Draft a medical report with an emphasis on key learning points."
 ]
 
-def load_clinical_texts_from_txt_dir(folder_path, max_samples=5000):
+answer_templates = [
+    "Here is the completed medical report:\n{report}",
+    "Below is the structured report derived from the text:\n{report}",
+    "I have generated the formal report as requested:\n{report}",
+    "Please review the following diagnostic report:\n{report}",
+    "Completed report in standard medical format:\n{report}",
+    "The full clinical report is provided here:\n{report}",
+    "Here's the comprehensive medical report:\n{report}",
+    "Structured report with diagnosis and plan:\n{report}",
+    "Detailed report based on the input note:\n{report}",
+    "Full narrative report follows:\n{report}",
+    "Here is a formatted medical report:\n{report}",
+    "The generated report outlining key findings:\n{report}",
+    "Complete diagnostic summary:\n{report}",
+    "Below find the finalized medical report:\n{report}",
+    "Here's the report suitable for EMR entry:\n{report}",
+    "Report including impressions and recommendations:\n{report}",
+    "Here is the clinician-ready report:\n{report}",
+    "Comprehensive structured report:\n{report}",
+    "The report has been drafted as follows:\n{report}",
+    "Diagnostic report prepared:\n{report}",
+    "Full patient report:\n{report}",
+    "The following report summarizes all findings:\n{report}",
+    "Generated medical report:\n{report}",
+    "Structured narrative report:\n{report}",
+    "Here is the formal report text:\n{report}",
+    "Completed diagnostic report below:\n{report}",
+    "Here's the standard formatted report:\n{report}",
+    "Report with headings and sections:\n{report}",
+    "Finalized report for the clinical passage:\n{report}",
+    "Medical report generated:\n{report}",
+    "The report is ready for review:\n{report}",
+    "Below is the thorough medical report:\n{report}",
+    "Comprehensive patient report:\n{report}",
+    "Here is the structured diagnostic summary:\n{report}",
+    "Reporting completed, see below:\n{report}",
+    "Full clinical summary report:\n{report}",
+    "Here's the concise yet complete report:\n{report}",
+    "Generated narrative report:\n{report}",
+    "Report outlining findings and plan:\n{report}",
+    "Complete structured document:\n{report}",
+]
+
+def load_clinical_texts(folder: Path, max_samples: int) -> list[str]:
+    """Load up to max_samples clinical text snippets from .txt files."""
     texts = []
-    files = sorted(os.listdir(folder_path))
-    for file in files:
-        if file.endswith(".txt"):
-            with open(os.path.join(folder_path, file), 'r') as f:
-                text = f.read().strip()
-                if text:
-                    texts.append(text)
+    for fname in sorted(folder.iterdir()):
+        if fname.suffix == ".txt":
+            content = fname.read_text(encoding="utf-8").strip()
+            if content:
+                texts.append(content)
             if len(texts) >= max_samples:
                 break
     return texts
 
-def generate_report_sample(idx, text):
+def transform(idx: int, text: str) -> dict:
     instruction = random.choice(report_generation_instructions)
+    user_prompt = f"{instruction}\n\n{text}"
+
+    tool_call = {
+        "from": "gpt",
+        "thoughts": "Using LLaVA to generate a formal medical report based on the input.",
+        "actions": [
+            {
+                "API_name": "LLaVA",
+                "API_params": {"task": "report_generation", "text": text}
+            }
+        ],
+        "value": "Generating medical report using LLaVA..."
+    }
+
+    tool_output = {
+        "from": "gpt",
+        "value": "<output_report>"
+    }
+
+    final_reply = random.choice(answer_templates).format(report="<output_report>")
+    assistant_reply = {"from": "gpt", "value": final_reply}
+
     return {
         "id": f"llava_report_{idx}",
         "conversations": [
-            {"from": "human", "value": f"{instruction}\n\n{text}"},
-            {
-                "from": "gpt",
-                "thoughts": "Using LLaVA to generate a formal medical report based on the input.",
-                "actions": [
-                    {
-                        "API_name": "LLaVA",
-                        "API_params": {
-                            "task": "report_generation",
-                            "text": text
-                        }
-                    }
-                ],
-                "value": "Generating medical report using LLaVA..."
-            },
-            {
-                "from": "gpt",
-                "value": "Here is the generated medical report based on the text. <output_report>"
-            }
+            {"from": "human", "value": user_prompt},
+            tool_call,
+            tool_output,
+            assistant_reply
         ]
     }
 
-def generate_dataset(clinical_texts, total_samples=5000):
-    return [generate_report_sample(i, clinical_texts[i % len(clinical_texts)]) for i in tqdm(range(total_samples))]
+def build_dataset():
+    random.seed(42)
+    texts = load_clinical_texts(INPUT_DIR, max_samples=5000)
 
-def save_to_jsonl(data, filename):
-    with open(filename, "w") as f:
-        for item in data:
-            json.dump(item, f)
-            f.write("\n")
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with OUTPUT_FILE.open("w", encoding="utf-8") as fout:
+        for idx in tqdm(range(5000), desc="Building report samples"):
+            text = texts[idx % len(texts)]
+            record = transform(idx, text)
+            json.dump(record, fout, ensure_ascii=False)
+            fout.write("\n")
+
+    print(f"Saved samples to '{OUTPUT_FILE}'")
 
 if __name__ == "__main__":
-    input_dir = "/home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/sumpubmed/line_text"
-    output_path = "/home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/tool_instruct/llava_rg_dataset.json"
-    texts = load_clinical_texts_from_txt_dir(input_dir, max_samples=5000)
-    data = generate_dataset(texts, total_samples=5000)
-    save_to_jsonl(data, output_path)
-    print(f"Saved report generation dataset with {len(data)} samples to: {output_path}")
+    build_dataset()
