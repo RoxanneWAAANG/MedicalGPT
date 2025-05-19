@@ -1,6 +1,9 @@
 import json
 import random
+from pathlib import Path
 from tqdm import tqdm
+
+OUTPUT_FILE = Path("./tool_instruct/healthgpt_superres_dataset.jsonl")
 
 modalities = ["MRI", "CT", "X-ray", "Ultrasound"]
 anatomies = ["brain", "chest", "abdomen", "spine", "liver", "heart", "knee"]
@@ -72,117 +75,109 @@ super_res_templates = [
     "Use AI super-resolution to create a high-detail {modality} scan for diagnosing {condition} in {anatomy}."
 ]
 
-values_templates = [
-    "Here is the enhanced high-resolution image of the {anatomy} showing {condition}:",
-    "Super-resolution complete. See below:",
-    "Image enhancement successful. Please find the upscaled image:",
-    "Your requested high-resolution image is ready:",
-    "Done! Here's the improved {modality} scan:",
-    "Image sharpening complete. Here is the output:",
-    "The enhanced image is now available:",
-    "High-definition image generated successfully:",
-    "Here is the refined {modality} scan in high resolution:",
-    "Upscaling finished. Here's the result:",
-    "Super-resolution applied. View the enhanced image:",
-    "Enhanced image of the {anatomy} ({condition}) is below:",
-    "High-res output ready for the {modality} scan:",
-    "Here's the sharpened image you requested:",
-    "Image upscaling done. Check this out:",
-    "Your high-definition {modality} image is here:",
-    "Detail enhancement complete. See the image:",
-    "Here's the super-resolved scan:",
-    "Output image with enhanced clarity:",
-    "Enjoy the upgraded resolution image below:",
-    "The refined high-resolution image is now provided:",
-    "Super-resolution finished. Displaying result:",
-    "Please find the high-res image here:",
-    "Resolution enhancement is done. Here's your image:",
-    "The {anatomy} image is now clearer. See below:",
-    "Enhanced scan for better visualization:",
-    "Your image enhancement is complete:",
-    "Here is the crisp, high-definition output:",
-    "Image restoration and upscaling done:",
-    "The detailed image is now available:",
-    "Here is the super-res image of the {anatomy}:",
-    "High-definition reconstruction complete:",
-    "Your {modality} image has been upscaled successfully:",
-    "Here's the clarified scan:",
-    "Resolution boost applied. Here's the image:",
-    "Enhanced view of the {anatomy} is provided:",
-    "High-quality image generated below:",
-    "Here is the fine-tuned high-res scan:",
-    "Super-speed upscaling done. See result:",
-    "Output image with improved resolution:",
-    "Here's the highly detailed image:",
-    "Enhanced {modality} image is ready for review:",
-    "High-res image of the {anatomy} is now available:",
-    "Your super-resolved image is here:",
-    "Image enhancement pipeline finished:",
-    "The processed high-definition image:",
-    "Clarity enhancement complete. View below:",
-    "Here is the artifact-free high-res image:",
-    "Your detailed scan is ready:",
-    "Image enhancement operation complete:",
-    "Here's the superior resolution image:",
-    "Enhanced medical scan is now provided:",
-    "High-resolution output available:",
-    "Here is the visually refined image:",
-    "Resolution uplift complete. See image:",
-    "Enhanced scan of the {modality} image:",
-    "Here is the ultra-clear image you asked for:",
-    "Your super-resolution result is below:",
-    "High-definition output for clinical review:"
+answer_templates = [
+    "Here is your enhanced image:\n{image}",
+    "Super-resolution complete. Output image:\n{image}",
+    "Image enhancement finished—see result below:\n{image}",
+    "The high-resolution scan is ready:\n{image}",
+    "Upscaling done. Here is the clarified image:\n{image}",
+    "Your requested high-def image:\n{image}",
+    "High-quality reconstruction generated:\n{image}",
+    "Enhanced diagnostic image below:\n{image}",
+    "Detail enhancement complete. Image:\n{image}",
+    "The refined scan is provided here:\n{image}",
+    "Image sharpening finished. Output:\n{image}",
+    "Resolution boost applied. See image:\n{image}",
+    "Here's the upgraded scan:\n{image}",
+    "HD output created successfully:\n{image}",
+    "Enhanced view for clinical review:\n{image}",
+    "Your super-resolved image is below:\n{image}",
+    "The improved image is now available:\n{image}",
+    "Clarity restored—please review:\n{image}",
+    "Enhanced {modality} scan attached:\n{image}",
+    "Here is the crisp, high-resolution result:\n{image}",
+    "Up-scaled image ready:\n{image}",
+    "Refined image output:\n{image}",
+    "Final high-def image generated:\n{image}",
+    "Image quality improved—see below:\n{image}",
+    "Enhanced resolution scan:\n{image}",
+    "Super-resolution successful. Result:\n{image}",
+    "Here's the denoised, sharper image:\n{image}",
+    "Completed high-detail reconstruction:\n{image}",
+    "The upgraded visual is attached:\n{image}",
+    "Sharper diagnostic image:\n{image}",
+    "HD reconstruction provided:\n{image}",
+    "Improved scan for better evaluation:\n{image}",
+    "Pixel enhancement complete. Image:\n{image}",
+    "Finalized high-quality output:\n{image}",
+    "Here is the high-fidelity scan:\n{image}",
+    "Image resolution elevated successfully:\n{image}",
+    "Super-resolution pipeline finished:\n{image}",
+    "Enhanced spatial detail now available:\n{image}",
+    "Upscaled medical image below:\n{image}",
+    "Ultra-clear image delivered:\n{image}",
+    "High-definition output image:\n{image}",
 ]
 
-def generate_superres_instruction(id_num, modality, anatomy, condition):
-    prompt = random.choice(super_res_templates).format(
-        modality=modality,
-        anatomy=anatomy,
-        condition=condition
+def transform(idx: int) -> dict:
+    anatomy   = random.choice(anatomies)
+    modality  = random.choice(modalities)
+    condition = random.choice(conditions[anatomy])
+
+    user_prompt = random.choice(super_res_templates).format(
+        modality=modality, anatomy=anatomy, condition=condition
     )
-    plan_value = (
-        f"To enhance the resolution of the {modality} scan for the {anatomy} with {condition}, "
-        "I will call HealthGPT's super_resolution API."
+
+    tool_call = {
+        "from": "gpt",
+        "thoughts": (
+            f"To enhance the {modality} image of the {anatomy} with {condition}, "
+            "I'll call HealthGPT's super_resolution API."
+        ),
+        "actions": [
+            {
+                "API_name": "HealthGPT",
+                "API_params": {
+                    "task": "super_resolution",
+                    "modality": modality,
+                    "anatomy": anatomy,
+                    "condition": condition
+                }
+            }
+        ],
+        "value": "Calling HealthGPT super_resolution..."
+    }
+
+    tool_output = {"from": "gpt", "value": "<image>"}
+
+    final_reply = random.choice(answer_templates).format(
+        image="<image>", modality=modality
     )
-    final_value = random.choice(values_templates).format(
-        modality=modality,
-        anatomy=anatomy,
-        condition=condition
-    ) + " <image>"
+    assistant_reply = {"from": "gpt", "value": final_reply}
 
     return {
-        "id": f"superres_{anatomy}_{id_num}",
+        "id": f"superres_{anatomy}_{idx}",
         "conversations": [
-            {"from": "human", "value": prompt},
-            {"from": "gpt", "thoughts": plan_value,
-             "actions": [{"API_name": "HealthGPT", "API_params": {
-                 "task": "super_resolution",
-                 "modality": modality,
-                 "anatomy": anatomy,
-                 "condition": condition
-             }}], "value": plan_value},
-            {"from": "gpt", "value": final_value}
+            {"from": "human", "value": user_prompt},
+            tool_call,
+            tool_output,
+            assistant_reply
         ]
     }
 
-def generate_dataset(n_samples=1000, seed=42):
+def build_dataset(n_samples: int = 5000,
+                  seed: int = 42,
+                  output_path: Path = OUTPUT_FILE) -> None:
     random.seed(seed)
-    dataset = []
-    for i in tqdm(range(n_samples), desc="Generating super-resolution samples"):
-        anatomy = random.choice(anatomies)
-        modality = random.choice(modalities)
-        condition = random.choice(conditions[anatomy])
-        dataset.append(generate_superres_instruction(i, modality, anatomy, condition))
-    return dataset
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-def save_dataset(dataset, filename="./tool_instruct/healthgpt_superres_dataset.jsonl"):
-    with open(filename, "w") as f:
-        for entry in dataset:
-            json.dump(entry, f)
-            f.write("\n")
+    with output_path.open("w", encoding="utf-8") as fout:
+        for idx in tqdm(range(n_samples),
+                        desc="Generating super-resolution samples"):
+            json.dump(transform(idx), fout, ensure_ascii=False)
+            fout.write("\n")
+
+    print(f"Saved {n_samples} super-resolution samples to '{output_path}'")
 
 if __name__ == "__main__":
-    total = 5000
-    dataset = generate_dataset(n_samples=total)
-    save_dataset(dataset)
-    print(f"Saved {len(dataset)} super-resolution samples to 'healthgpt_superres_dataset.jsonl'.")
+    build_dataset()
