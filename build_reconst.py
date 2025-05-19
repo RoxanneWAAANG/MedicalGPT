@@ -1,6 +1,9 @@
 import json
 import random
+from pathlib import Path
 from tqdm import tqdm
+
+OUTPUT_FILE  = Path("./tool_instruct/healthgpt_reconstruct_dataset.jsonl")
 
 modalities = ["MRI", "CT", "X-ray", "Ultrasound"]
 anatomies = ["brain", "chest", "abdomen", "spine", "liver", "heart", "knee"]
@@ -48,71 +51,110 @@ instruction_templates = [
     "Can you list key resources and advice for coping with {condition}?"
 ]
 
-values_templates = [
-    "Happy to assist. To address your query, I'll use a HealthGPT model to provide suggestions from credible sources. Here's my recommendation:",
-    "Pleased to help. For your question, I will employ a HealthGPT model to derive suggestions from verified sources. My suggestion follows:",
-    "I'm here to assist. In response to your inquiry, I'll leverage a HealthGPT model to generate recommendations from authorized sources. Here is what I suggest:",
-    "Certainly. I'll consult authoritative medical sources with a RAG model and share my findings:",
-    "Understood. Retrieving up-to-date clinical guidance now-here's what I recommend:",
-    "On it. I'm pulling evidence-based information—you'll find my suggestions below:",
-    "Let me fetch the latest medical insights—here's a concise recommendation:",
-    "I'll gather expert-validated data and present you with actionable advice:",
-    "I'm retrieving peer-reviewed medical details—this is my guidance:",
-    "Drawing on trusted medical literature, here's the plan I recommend:",
-    "Consulting clinical guidelines now—please consider the following steps:",
-    "I'm examining best-practice protocols and will outline my advice:",
-    "I'll use a HealthGPT model to compile top-tier recommendations for you:"
+answer_templates = [
+    "Here is a synthetic {modality} image illustrating {condition}. Let me explain the key features you're seeing:",
+    "I have generated a representative {modality} scan that shows {condition}. Below is an overview of the findings:",
+    "The image provided demonstrates {condition} on {modality}. Important points are highlighted:",
+    "I created a {modality} reconstruction depicting {condition}. Notice the characteristic changes:",
+    "This {modality} example visualizes {condition}. Key observations:",
+    "You'll find a reconstructed {modality} image of {condition} attached. Here is what it reveals:",
+    "Below is an illustrative {modality} scan for {condition}. Let me walk you through it:",
+    "I've produced a simulated {modality} image highlighting {condition}. Key features include:",
+    "Here's an educational {modality} reconstruction of {condition}. Observe the following details:",
+    "The attached {modality} image models {condition}. Pay particular attention to:",
+    "I've synthesized a {modality} view of {condition}. The main visual cues are:",
+    "This generated {modality} scan illustrates {condition}. Relevant findings:",
+    "Presented is a {modality} reconstruction showcasing {condition}. Diagnostic pearls:",
+    "Here is a diagnostic-style {modality} image of {condition}. Significant aspects:",
+    "I constructed a {modality} image depicting {condition}. Notice the hallmark signs:",
+    "Below find a {modality} representation of {condition}. Interpretation notes:",
+    "A simulated {modality} scan of {condition} is provided. Essential points:",
+    "You now have a {modality} reconstruction for {condition}. Key elements:",
+    "Here is the requested {modality} visualization of {condition}. Clinical highlights:",
+    "I've generated an illustrative {modality} image showing {condition}. Observations:",
+    "A synthetic {modality} demonstrating {condition} is delivered. Focus on:",
+    "The following {modality} image models {condition}. Important indicators:",
+    "This is a reconstructed {modality} of {condition}. Pertinent features:",
+    "Here's how {condition} appears on {modality}. Main findings:",
+    "I've produced an example {modality} image with {condition}. What to look for:",
+    "Attached is a {modality} depiction of {condition}. Points of interest:",
+    "Observe the reconstructed {modality} scan showing {condition}. Highlights:",
+    "You can review a synthetic {modality} displaying {condition}. Key takeaways:",
+    "Provided is a {modality} illustration of {condition}. Significant regions:",
+    "Here is a modeled {modality} image of {condition}. Note the following:",
+    "Below is a {modality} rendering demonstrating {condition}. Examination notes:",
+    "I've created a teaching {modality} example for {condition}. Important observations:",
+    "This {modality} reconstruction portrays {condition}. Essential findings:",
+    "A representative {modality} image of {condition} has been constructed. Details:",
+    "See the generated {modality} showing {condition}. Relevant anatomy:",
+    "Here's your requested {modality} of {condition}. Diagnostic indicators:",
+    "A sample {modality} scan for {condition} is presented. Please note:",
+    "The synthesized {modality} image depicts {condition}. Salient points:",
+    "I've assembled a {modality} illustration of {condition}. Critical features:",
+    "Take a look at this {modality} visualization of {condition}. Key aspects:",
+    "The following {modality} reconstruction highlights {condition}. Observed changes:",
 ]
 
-def generate_rag_instruction(id_num, anatomy, condition):
-    prompt = random.choice(instruction_templates).format(condition=condition)
-    final_response = random.choice(values_templates) + f" Here is what I found about {condition} and how to proceed." + " <image>"
+def transform(idx: int) -> dict:
+    """Generate one conversation record."""
+    anatomy   = random.choice(anatomies)
+    condition = random.choice(conditions[anatomy])
+    modality  = random.choice(modalities)
+
+    user_prompt = random.choice(instruction_templates).format(
+        modality=modality, anatomy=anatomy, condition=condition
+    )
+
+    tool_call = {
+        "from": "gpt",
+        "thoughts": "To fulfill this request, I'll generate a representative image using HealthGPT.",
+        "actions": [
+            {
+                "API_name": "HealthGPT",
+                "API_params": {
+                    "task": "reconstruct_image",
+                    "modality": modality,
+                    "anatomy": anatomy,
+                    "condition": condition
+                }
+            }
+        ],
+        "value": "Calling HealthGPT to reconstruct the image..."
+    }
+
+    tool_output = {
+        "from": "gpt",
+        "value": "<image>"
+    }
+
+    final_answer = random.choice(answer_templates).format(
+        modality=modality, condition=condition
+    )
+    assistant_reply = {
+        "from": "gpt",
+        "value": final_answer
+    }
 
     return {
-        "id": f"rag_{anatomy}_{id_num}",
+        "id": f"reconstruct_{idx}",
         "conversations": [
-            {
-                "from": "human",
-                "value": prompt
-            },
-            {
-                "from": "gpt",
-                "thoughts": f"To answer this, I should reconstruct the image about {condition} using HealthGPT.",
-                "actions": [
-                    {
-                        "API_name": "HealthGPT",
-                        "API_params": {
-                            "query": condition
-                        }
-                    }
-                ],
-                "value": f"I will use HealthGPT to reconstruct the image about {condition}."
-            },
-            {
-                "from": "gpt",
-                "value": final_response
-            }
+            {"from": "human", "value": user_prompt},
+            tool_call,
+            tool_output,
+            assistant_reply
         ]
     }
 
-def generate_dataset(n_samples=1000, seed=42):
+def build_dataset(n_samples: int = 5000, seed: int = 42, output_path: Path = OUTPUT_FILE) -> None:
+    """Generate the dataset and save as JSONL."""
     random.seed(seed)
-    dataset = []
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as fout:
+        for idx in tqdm(range(n_samples), desc="Generating reconstruction samples"):
+            record = transform(idx)
+            json.dump(record, fout, ensure_ascii=False)
+            fout.write("\n")
+    print(f"Dataset with {n_samples} samples saved to '{output_path}'")
 
-    for i in tqdm(range(n_samples)):
-        anatomy = random.choice(anatomies)
-        condition = random.choice(conditions[anatomy])
-        item = generate_rag_instruction(i, anatomy, condition)
-        dataset.append(item)
-
-    return dataset
-
-def save_dataset(dataset, filename="./tool_instruct/healthgpt_reconst_dataset.json"):
-    with open(filename, "w") as f:
-        for entry in dataset:
-            json.dump(entry, f)
-            f.write("\n")
-
-dataset = generate_dataset(n_samples=5000)
-save_dataset(dataset)
-print(f"Dataset with {len(dataset)} samples saved to 'healthgpt_reconst_dataset.json'.")
+if __name__ == "__main__":
+    build_dataset()
