@@ -72,7 +72,7 @@ answer_templates = [
     "Slice {slice_idx} ({modality}) registered with minimal distortion. Check overlay for subtle shifts.",
     "UniGradICON produced a deformation field for {modality} slice {slice_idx}. The result is attached.",
     "Alignment achieved for slice {slice_idx} ({modality}). Verify critical structures in the output.",
-    "Here’s the registered {modality} slice {slice_idx}. Visual inspection suggests good correspondence.",
+    "Here's the registered {modality} slice {slice_idx}. Visual inspection suggests good correspondence.",
     "The moving image is now aligned to the fixed image for {modality} slice {slice_idx}.",
     "Registration parameters applied to slice {slice_idx} ({modality}). Output ready for evaluation.",
     "Completed registration on slice {slice_idx} in {modality}. Overlay appears accurate.",
