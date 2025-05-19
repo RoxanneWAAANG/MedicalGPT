@@ -1,9 +1,9 @@
 import json
 import random
+from pathlib import Path
 from tqdm import tqdm
 
-OUTPUT_FILE = "./tool_instruct/internet_seg_dataset.jsonl"
-NUM_SAMPLES = 5000
+OUTPUT_FILE = Path("./tool_instruct/internet_seg_dataset.jsonl")
 
 templates_internet = [
     "Segment the retinal blood vessels in this fundus image using IterNet: <image>",
@@ -58,10 +58,54 @@ templates_internet = [
     "Apply IterNet to segment vessel branches and bifurcations in the retinal scan: <image>."
 ]
 
-def make_internet_record(idx):
-    prompt = random.choice(templates_internet)
-    human = {"from": "human", "value": prompt}
-    gpt_call = {
+answer_templates = [
+    "The vessel segmentation is complete. Here is the mask:\n{mask}",
+    "IterNet has generated the retinal vessel mask:\n{mask}",
+    "Below is the binary vessel segmentation result:\n{mask}",
+    "Here is the segmented vasculature overlay:\n{mask}",
+    "Completed vessel segmentation; mask attached:\n{mask}",
+    "Vessel mask produced by IterNet:\n{mask}",
+    "Retinal vasculature successfully segmented:\n{mask}",
+    "Here's the output vessel mask:\n{mask}",
+    "Segmentation finished—see mask below:\n{mask}",
+    "Resulting vessel segmentation image:\n{mask}",
+    "The extracted vascular network is provided here:\n{mask}",
+    "Binary vessel map generated:\n{mask}",
+    "IterNet output mask:\n{mask}",
+    "Vessel segmentation completed:\n{mask}",
+    "Please review the vessel mask:\n{mask}",
+    "Here is the final vessel segmentation:\n{mask}",
+    "Segmentation mask for retinal vessels:\n{mask}",
+    "The vascular tree has been isolated:\n{mask}",
+    "Here's the delineated vessel network:\n{mask}",
+    "Mask showing segmented vessels:\n{mask}",
+    "Retinal vessel segmentation image:\n{mask}",
+    "The retinal vasculature mask is attached:\n{mask}",
+    "Below find the segmented vessel overlay:\n{mask}",
+    "IterNet segmentation result:\n{mask}",
+    "Output image with vessel mask:\n{mask}",
+    "Final vessel segmentation mask:\n{mask}",
+    "Here is the isolated vascular structure:\n{mask}",
+    "Binary mask for retinal vessels:\n{mask}",
+    "Completed vessel map:\n{mask}",
+    "Here is the vascular segmentation output:\n{mask}",
+    "Segmentation mask provided:\n{mask}",
+    "The vessels have been segmented; see below:\n{mask}",
+    "Here's the extracted vasculature mask:\n{mask}",
+    "Vessel segmentation (IterNet):\n{mask}",
+    "Result mask of retinal vessels:\n{mask}",
+    "Below is the IterNet vessel segmentation:\n{mask}",
+    "Segmentation overlay ready:\n{mask}",
+    "Here is the detailed vessel mask:\n{mask}",
+    "The retinal vessel map is as follows:\n{mask}",
+    "Segmentation success—mask below:\n{mask}",
+    "Here is the generated vessel segmentation mask:\n{mask}",
+]
+
+def transform(idx: int) -> dict:
+    user_prompt = random.choice(templates_internet)
+
+    tool_call = {
         "from": "gpt",
         "thoughts": "This is a retinal vessel segmentation task; I'll call the IterNet tool.",
         "actions": [
@@ -69,13 +113,38 @@ def make_internet_record(idx):
         ],
         "value": "Calling IterNet to segment retinal vessels..."
     }
-    gpt_out = {"from": "gpt", "value": "<output_image>"}
-    return {"id": f"internet_seg_{idx}", "conversations": [human, gpt_call, gpt_out]}
+
+    tool_output = {
+        "from": "gpt",
+        "value": "<output_image>"
+    }
+
+    final_reply = random.choice(answer_templates).format(mask="<output_image>")
+    assistant_reply = {"from": "gpt", "value": final_reply}
+
+    return {
+        "id": f"internet_seg_{idx}",
+        "conversations": [
+            {"from": "human", "value": user_prompt},
+            tool_call,
+            tool_output,
+            assistant_reply
+        ]
+    }
+
+def build_dataset(n_samples: int = 5000,
+                  seed: int = 42,
+                  output_path: Path = OUTPUT_FILE) -> None:
+    random.seed(seed)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with output_path.open("w", encoding="utf-8") as fout:
+        for idx in tqdm(range(n_samples),
+                        desc="Generating IterNet vessel segmentation samples"):
+            json.dump(transform(idx), fout, ensure_ascii=False)
+            fout.write("\n")
+
+    print(f"Saved {n_samples} IterNet records to '{output_path}'")
 
 if __name__ == "__main__":
-    random.seed(42)
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as fout:
-        for i in tqdm(range(NUM_SAMPLES), desc="Generating IterNet vessel segmentation instructions"):
-            rec = make_internet_record(i)
-            fout.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    print(f"Saved {NUM_SAMPLES} IterNet records to {OUTPUT_FILE}")
+    build_dataset()
