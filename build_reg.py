@@ -126,17 +126,12 @@ def transform(idx: int) -> dict:
         "value": "Calling UniGradICON to register images..."
     }
 
-    tool_output = {
-        "from": "gpt",
-        "value": "<output_image>"
-    }
-
     final_answer = random.choice(answer_templates).format(
         modality=modality, slice_idx=slice_idx
     )
     assistant_reply = {
         "from": "gpt",
-        "value": f"{tool_output['value']}\n{final_answer}"
+        "value": f"<output_image>\n{final_answer}"
     }
 
     return {
@@ -144,7 +139,6 @@ def transform(idx: int) -> dict:
         "conversations": [
             {"from": "human", "value": user_prompt},
             tool_call,
-            tool_output,
             assistant_reply
         ]
     }
