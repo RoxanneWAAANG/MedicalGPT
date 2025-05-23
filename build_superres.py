@@ -148,8 +148,6 @@ def transform(idx: int) -> dict:
         "value": "Calling HealthGPT super_resolution..."
     }
 
-    tool_output = {"from": "gpt", "value": "<image>"}
-
     final_reply = random.choice(answer_templates).format(
         image="<image>", modality=modality
     )
@@ -160,7 +158,6 @@ def transform(idx: int) -> dict:
         "conversations": [
             {"from": "human", "value": user_prompt},
             tool_call,
-            tool_output,
             assistant_reply
         ]
     }
