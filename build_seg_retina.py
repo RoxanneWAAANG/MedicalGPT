@@ -114,11 +114,6 @@ def transform(idx: int) -> dict:
         "value": "Calling IterNet to segment retinal vessels..."
     }
 
-    tool_output = {
-        "from": "gpt",
-        "value": "<output_image>"
-    }
-
     final_reply = random.choice(answer_templates).format(mask="<output_image>")
     assistant_reply = {"from": "gpt", "value": final_reply}
 
@@ -127,7 +122,6 @@ def transform(idx: int) -> dict:
         "conversations": [
             {"from": "human", "value": user_prompt},
             tool_call,
-            tool_output,
             assistant_reply
         ]
     }
