@@ -132,21 +132,17 @@ def transform(record, idx):
         "value": "Calling RaTE-NER to extract entities..."
     }
 
-    tool_output = {
-        "from": "gpt",
-        "value": json.dumps(spans, ensure_ascii=False)
-    }
-
     pretty_entities = spans_to_entities(tokens, spans)
     friendly_reply  = random.choice(answer_templates).format(entities=pretty_entities)
-    gpt_answer = {
+    
+    gpt_final_response = {
         "from": "gpt",
         "value": friendly_reply
     }
 
     return {
         "id": f"ner_sample_{idx}",
-        "conversations": [human, gpt_tool_call, tool_output, gpt_answer]
+        "conversations": [human, gpt_tool_call, gpt_final_response]
     }
 
 def build_dataset(input_path, output_path, max_samples=MAX_SAMPLES):
