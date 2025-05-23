@@ -113,11 +113,6 @@ def transform(idx: int) -> dict:
         "value": "Calling HealthGPT to reconstruct the image..."
     }
 
-    tool_output = {
-        "from": "gpt",
-        "value": "<image>"
-    }
-
     final_response = random.choice(reconstruction_response_templates)
     assistant_reply = {
         "from": "gpt",
@@ -134,7 +129,6 @@ def transform(idx: int) -> dict:
         "conversations": [
             {"from": "human", "value": user_prompt},
             tool_call,
-            tool_output,
             assistant_reply
         ]
     }
