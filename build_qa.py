@@ -49,7 +49,7 @@ answer_templates = [
     "Answer provided below:\n{answer}",
 ]
 
-def transform_example(example, idx):
+def transform(example, idx):
     user_prompt = f"{example['instruction']}\n{example['input']}"
     raw_answer  = example["output"]
 
@@ -75,10 +75,6 @@ def transform_example(example, idx):
             },
             {
                 "from": "gpt",
-                "value": raw_answer
-            },
-            {
-                "from": "gpt",
                 "value": friendly_reply
             }
         ]
@@ -92,7 +88,7 @@ def build_instruction_dataset(input_path, output_path, max_samples):
 
     with open(output_path, "w", encoding="utf-8") as out:
         for idx, ex in enumerate(tqdm(subset, desc=f"Transforming first {max_samples} examples")):
-            record = transform_example(ex, idx)
+            record = transform(ex, idx)
             out.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     print(f"\nWrote {len(subset)} records to '{output_path}'")
