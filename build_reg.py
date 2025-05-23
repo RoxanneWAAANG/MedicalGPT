@@ -136,7 +136,7 @@ def transform(idx: int) -> dict:
     )
     assistant_reply = {
         "from": "gpt",
-        "value": final_answer
+        "value": f"{tool_output['value']}\n{final_answer}"
     }
 
     return {
