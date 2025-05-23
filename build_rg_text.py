@@ -131,11 +131,6 @@ def transform(idx: int, text: str) -> dict:
         "value": "Generating medical report using LLaVA..."
     }
 
-    tool_output = {
-        "from": "gpt",
-        "value": "<output_report>"
-    }
-
     final_reply = random.choice(answer_templates).format(report="<output_report>")
     assistant_reply = {"from": "gpt", "value": final_reply}
 
@@ -144,7 +139,6 @@ def transform(idx: int, text: str) -> dict:
         "conversations": [
             {"from": "human", "value": user_prompt},
             tool_call,
-            tool_output,
             assistant_reply
         ]
     }
