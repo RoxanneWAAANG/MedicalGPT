@@ -1,10 +1,69 @@
-import json
-import random
+import json, random, xml.etree.ElementTree as ET
+from pathlib import Path
+from glob import glob
 from tqdm import tqdm
 
-INPUT_FILE  = "/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/pmc_llama_instructions/release.json"
+INPUT_FILE = "/home/jack/Projects/yixin-llm/yixin-llm-data/instruct_dataset/pubmedqa/pubmedqa.json"
 OUTPUT_FILE = "./tool_instruct/pmc_llama_medqa_dataset.jsonl"
 MAX_SAMPLES = 10000
+
+prompt_templates = [
+    "You're provided with a biomedical question and several evidence passages.\nCraft a complete answer supported by clear, concise reasoning.\n\n",
+    "Given the research question and its supporting excerpts, produce an evidence-backed answer with a brief rationale.\n\n",
+    "Below is a medical query plus contextual snippets from PubMed. Respond with a thorough answer and a short explanation of your logic.\n\n",
+    "Consider the biomedical question and related passages. Write an accurate answer and summarize the reasoning succinctly.\n\n",
+    "Analyze the research question and accompanying literature excerpts. Deliver a well-supported answer followed by concise justification.\n\n",
+    "For the question below, use the provided passages to generate a definitive answer and outline your reasoning briefly.\n\n",
+    "Use the evidence passages to answer the biomedical question thoroughly, then give a compact rationale.\n\n",
+    "Read the question and its supporting text blocks. Compose a complete answer backed by succinct reasoning.\n\n",
+    "With the medical question and evidence passages, formulate an accurate answer and a short, clear rationale.\n\n",
+    "Consult the supplied PubMed excerpts to address the question. Provide your answer and a concise explanation of how you arrived at it.\n\n",
+    "You have a health-science question plus supporting literature. Produce a detailed answer and a brief justification.\n\n",
+    "Given the following biomedical query and passages, craft a precise answer with minimal yet solid reasoning.\n\n",
+    "Use the excerpts below to answer the research question. Keep the rationale focused and concise.\n\n",
+    "Respond to the medical question using evidence from the passages. Summarize your reasoning in a few sentences.\n\n",
+    "Interpret the context snippets to create a comprehensive answer, then append a succinct rationale.\n\n",
+    "Answer the question using only the information in the passages and explain your reasoning briefly.\n\n",
+    "Leverage the evidence paragraphs to construct an accurate answer followed by a compact explanation.\n\n",
+    "Assess the supplied literature and deliver a complete answer with streamlined reasoning.\n\n",
+    "Craft an evidence-based answer to the biomedical inquiry and condense your justification into two-three sentences.\n\n",
+    "From the passages provided, derive a thorough answer and cite your reasoning concisely.\n\n",
+    "You're tasked with answering a PubMed question. Provide the answer and a crisp rationale grounded in the text.\n\n",
+    "Examine the evidence snippets and respond to the question with clarity and brief reasoning.\n\n",
+    "Produce an accurate answer to the research query, followed by a distilled explanation of your logic.\n\n",
+    "Analyze the supporting excerpts to craft a substantive answer and a short rationale.\n\n",
+    "Review the passages, answer the question fully, then encapsulate your reasoning in one short paragraph.\n\n",
+    "Use only the information given to answer the biomedical question and provide concise reasoning.\n\n",
+    "Create a complete, evidence-supported answer and summarize your reasoning in a few lines.\n\n",
+    "Draw on the literature snippets to formulate an answer and a tight rationale.\n\n",
+    "Synthesize an accurate answer from the passages and append a succinct explanation.\n\n",
+    "Refer to the provided text to answer comprehensively, then state your reasoning briefly.\n\n",
+    "Employ the supporting passages to draft a definitive answer with a bite-sized rationale.\n\n",
+    "Your task: answer the biomedical question using the excerpts and offer concise justification.\n\n",
+    "Use the accompanying literature to furnish a thorough answer and a slim reasoning section.\n\n",
+    "Evaluate the context, supply a complete answer, and clarify your reasoning in a short form.\n\n",
+    "Respond to the medical query with an evidence-based answer and a sharp, concise rationale.\n\n",
+    "Generate a well-supported answer and condense the underlying logic into a brief summary.\n\n",
+    "Craft a detailed answer grounded in the passages and explain your steps succinctly.\n\n",
+    "Produce the answer plus a minimal justification referencing the evidence provided.\n\n",
+    "Study the supporting text and write an accurate answer along with a compressed rationale.\n\n",
+    "Derive a full answer from the passages, then explain your reasoning in two or three sentences.\n\n",
+    "Analyze the excerpts and return a meticulous answer followed by concise reasoning.\n\n",
+    "Formulate an evidence-driven answer to the question and outline your logic briefly.\n\n",
+    "Based on the passages, create a thorough response and a short justification.\n\n",
+    "Read the provided context, answer completely, then deliver a succinct rationale.\n\n",
+    "Use these PubMed snippets to offer a comprehensive answer and a tight reasoning section.\n\n",
+    "Generate an accurate biomedical answer and back it up with concise reasoning.\n\n",
+    "Craft a fully supported response to the question, followed by a lean rationale.\n\n",
+    "Produce a detailed answer from the evidence and summarize your reasoning crisply.\n\n",
+    "Deliver a robust answer grounded in the passages and a brief explanation of how you got there.\n\n",
+    "Rely on the given context to answer and then condense your thought process into a short rationale.\n\n",
+    "Consult the passages, supply a precise answer, and cap it with compact reasoning.\n\n",
+    "Provide an evidence-based answer and compress your justification into a few lines.\n\n",
+    "Use the literature snippets to respond fully and finish with a concise explanation.\n\n",
+    "Derive your answer solely from the excerpts and present a short rationale.\n\n",
+    "Combine an accurate answer with a succinct justification rooted in the provided text.\n\n",
+]
 
 answer_templates = [
     "Here's a concise answer based on the analysis:\n{answer}",
@@ -49,17 +108,28 @@ answer_templates = [
     "Answer provided below:\n{answer}",
 ]
 
-def transform(example, idx):
-    user_prompt = f"{example['instruction']}\n{example['input']}"
-    raw_answer  = example["output"]
+def join_context(ctx):
+    return "\n\n".join(ctx) if isinstance(ctx, list) else str(ctx)
 
-    friendly_reply = random.choice(answer_templates).format(answer=raw_answer)
+def transform(ex, idx):
+    question = ex["question"].strip()
+    context  = join_context(ex["context"]["contexts"])
+    answer   = ex.get("long_answer", "").strip()
+
+    system_prompt = random.choice(prompt_templates)
+    user_prompt   = (
+        system_prompt +
+        f"### Question:\n{question}\n\n"
+        f"### Context:\n{context}"
+    )
+
+    friendly_reply = random.choice(answer_templates).format(answer=answer)
 
     return {
-        "id": f"pmc_sample_{idx}",
+        "id": f"pubmedqa_{idx}",
         "conversations": [
             {
-                "from": "human",
+                "from": "human", 
                 "value": user_prompt
             },
             {
@@ -68,13 +138,13 @@ def transform(example, idx):
                 "actions": [
                     {
                         "API_name": "PMC-LLaMA",
-                        "API_params": {"query": example["input"]}
+                        "API_params": {"query": question}
                     }
                 ],
                 "value": "Calling PMC-LLaMA to get the answer and rationale..."
             },
             {
-                "from": "gpt",
+                "from": "gpt", 
                 "value": friendly_reply
             }
         ]
