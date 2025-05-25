@@ -23,7 +23,7 @@ summarization_instructions = [
     "Generate a synopsis highlighting key symptoms and interventions.",
     "Write a summary suitable for a medical case database.",
     "Create a plain-language summary of this clinical abstract.",
-    "Offer a bullet-point summary of the most critical clinical findings.",
+    "Offer a summary of the most critical clinical findings.",
     "Extract and summarize the diagnostic conclusions from this report.",
     "Provide a brief summary emphasizing patient outcomes.",
     "Outline the prominent clinical observations in a short summary.",
@@ -31,7 +31,7 @@ summarization_instructions = [
     "Summarize the methodology and results presented in this excerpt.",
     "Highlight the key clinical recommendations in summary form.",
     "Create a digest of the most important research findings.",
-    "Provide a succinct overview suitable for medical record notes.",
+    "Provide an overview suitable for medical record notes.",
     "Write a brief abstract based on the given clinical paragraph.",
     "Generate a short summary focusing on diagnostic criteria.",
     "Summarize the main pharmacological interventions described.",
@@ -49,7 +49,7 @@ summarization_instructions = [
     "Summarize the patient's history, exam, and plan in a concise paragraph.",
     "Generate a layperson-friendly summary of this medical text.",
     "Provide a clinical take-home points summary.",
-    "Distill this medical abstract into three key sentences.",
+    "Distill this medical abstract into few key sentences.",
     "Summarize the treatment plan and follow-up instructions.",
     "Create a summary that highlights safety and efficacy results.",
     "Produce an executive summary of this clinical trial report.",
@@ -61,12 +61,12 @@ summarization_instructions = [
     "Summarize the adverse events and management strategies.",
     "Write a brief summary of the study design and endpoints.",
     "Produce a summary emphasizing changes from baseline values.",
-    "Summarize the follow-up recommendations in bullet points.",
+    "Summarize the follow-up recommendations.",
     "Capture the essential diagnostic criteria in a short summary.",
     "Generate a summary that outlines risk factors and prevention.",
     "Summarize the pathophysiology and key clinical markers.",
     "Provide a summary focusing on patient symptoms and response.",
-    "Write a succinct summary of the research hypothesis and results."
+    "Write a summary of the research hypothesis and results."
 ]
 
 answer_templates = [
