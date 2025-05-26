@@ -1,8 +1,8 @@
 # python3 supervised_finetuning.py \
 CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node 2 supervised_finetuning.py \
     --model_name_or_path Qwen/Qwen2.5-0.5B-Instruct \
-    --train_file_dir /home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/tool_instruct \
-    --validation_file_dir /home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/tool_instruct \
+    --train_file_dir /home/jack/Projects/yixin-llm/MedicalGPT/tool_instruct_all \
+    --validation_file_dir /home/jack/Projects/yixin-llm/MedicalGPT/tool_instruct_all \
     --cache_dir ./model \
     --device_map "cuda" \
     --use_peft True \
