@@ -3,7 +3,7 @@ CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node 2 supervised_finetuning.py \
     --model_name_or_path Qwen/Qwen2.5-0.5B-Instruct \
     --train_file_dir /home/jack/Projects/yixin-llm/MedicalGPT/tool_instruct_all \
     --validation_file_dir /home/jack/Projects/yixin-llm/MedicalGPT/tool_instruct_all \
-    --cache_dir ./model \
+    --cache_dir ./model_v2 \
     --device_map "cuda" \
     --use_peft True \
     --lora_rank 8 \
@@ -26,7 +26,7 @@ CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node 2 supervised_finetuning.py \
     --save_total_limit 3 \
     --gradient_accumulation_steps 8 \
     --preprocessing_num_workers 10 \
-    --output_dir outputs-full-sft-v1 \
+    --output_dir outputs-full-sft-v2 \
     --overwrite_output_dir \
     --ddp_timeout 30000 \
     --logging_first_step True \

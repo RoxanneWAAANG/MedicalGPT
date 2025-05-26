@@ -13,5 +13,5 @@ for file_path in input_files:
 
 print(f"Total examples merged: {len(merged)}")
 
-with open("tool_instruct/instruct_all.json", "w") as out_file:
+with open("tool_instruct_all/instruct_all.json", "w") as out_file:
     json.dump(merged, out_file, indent=2)
