@@ -168,7 +168,10 @@ def transform(record: dict, idx: int) -> dict:
     return {
         "id": f"rad_sample_{idx}",
         "conversations": [
-            {"from": "human", "value": user_prompt},
+            {
+                "from": "human",
+                "value": user_prompt
+            },
             tool_call,
             assistant_reply
         ]

@@ -94,7 +94,7 @@ def transform(idx: int) -> dict:
     condition = random.choice(conditions[anatomy])
     modality = random.choice(modalities)
 
-    user_prompt = random.choice(instruction_templates)
+    user_prompt = random.choice(instruction_templates) + "<image>\n"
 
     tool_call = {
         "from": "gpt",
@@ -121,13 +121,11 @@ def transform(idx: int) -> dict:
 
     return {
         "id": f"reconstruct_{idx}",
-        "meta": {
-            "modality": modality,
-            "anatomy": anatomy,
-            "condition": condition
-        },
         "conversations": [
-            {"from": "human", "value": user_prompt},
+            {
+                "from": "human",
+                "value": user_prompt
+            },
             tool_call,
             assistant_reply
         ]
