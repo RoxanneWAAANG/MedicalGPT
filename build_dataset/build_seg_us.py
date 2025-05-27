@@ -14,7 +14,6 @@ NUM_SAMPLES = 5000
 templates = [
     "Segment the region within the box {bbox} in this ultrasound image: <image>",
     "Please segment the area inside bounding box {bbox} of the ultrasound frame: <image>",
-    "Apply the segmentation model to the ultrasound scan <image>, focusing on box {bbox}.",
     "Isolate the portion defined by {bbox} in this ultrasound image: <image>",
     "Delineate the structure within bounding box {bbox} on ultrasound image <image>.",
     "Run segmentation on the crop {bbox} of the ultrasound scan: <image>.",
@@ -22,10 +21,8 @@ templates = [
     "Perform pixel-wise segmentation inside box {bbox} in <image>.",
     "Segment the rectangle {bbox} in the ultrasound frame <image>.",
     "Segment only the area bounded by {bbox} in this ultrasound image: <image>.",
-    "Use the segmentation API for ultrasound image <image>, targeting box {bbox}.",
     "Generate a mask for the box {bbox} region in <image>.",
     "Outline the area inside {bbox} on ultrasound image <image>.",
-    "Run the segmentation model focusing on bounding box {bbox} of <image>.",
     "Segment the rectangle defined by {bbox} in this ultrasound scan: <image>.",
     "Segment the ROI at {bbox} in the ultrasound image <image>.",
     "Segment the area within coordinates {bbox} in <image>.",

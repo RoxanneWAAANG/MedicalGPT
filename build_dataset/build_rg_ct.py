@@ -63,7 +63,7 @@ instruction_templates = [
     "As a consulting radiologist, provide a second opinion report for this scan.",
     "What does this {modality} image show?",
     "Are there any abnormalities visible in this {modality} scan?",
-    "What’s your impression of this {modality} image?",
+    "What's your impression of this {modality} image?",
     "Is anything concerning visible in the following {modality} scan?",
     "Can you walk me through your findings from this {modality} image?",
     "Do you notice anything unusual in the attached {modality} scan?",
