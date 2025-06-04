@@ -397,81 +397,261 @@ def main():
     # Preprocessing the datasets
     max_length = script_args.model_max_length
 
+    # def preprocess_function(examples):
+    #     """
+    #     Preprocessing the datasets.
+    #         part of code modified from https://github.com/lm-sys/FastChat
+    #     """
+    #     input_ids_list = []
+    #     attention_mask_list = []
+    #     targets_list = []
+    #     roles = ["human", "gpt"]
+
+        # def get_dialog(examples):
+        #     system_prompts = examples.get("system_prompt", "")
+        #     for i, source in enumerate(examples['conversations']):
+        #         system_prompt = ""
+        #         if len(source) < 2:
+        #             continue
+        #         data_role = source[0].get("from", "")
+        #         if data_role == "system":
+        #             # Skip the first one if it is from system
+        #             system_prompt = source[0]["value"]
+        #             source = source[1:]
+        #             data_role = source[0].get("from", "")
+        #         if data_role not in roles or data_role != roles[0]:
+        #             # Skip the first one if it is not from human
+        #             source = source[1:]
+        #         if len(source) < 2:
+        #             continue
+        #         messages = []
+        #         for j, sentence in enumerate(source):
+        #             data_role = sentence.get("from", "")
+        #             if data_role not in roles:
+        #                 logger.warning(f"unknown role: {data_role}, {i}. (ignored)")
+        #                 break
+        #             if data_role == roles[j % 2]:
+        #                 messages.append(sentence["value"])
+        #         if len(messages) % 2 != 0:
+        #             continue
+        #         # Convert the list to pairs of elements
+        #         history_messages = [[messages[k], messages[k + 1]] for k in range(0, len(messages), 2)]
+        #         if not system_prompt:
+        #             system_prompt = system_prompts[i] if system_prompts else ""
+        #         yield prompt_template.get_dialog(history_messages, system_prompt=system_prompt)
+
+        # for dialog in get_dialog(examples):
+        #     input_ids, labels = [], []
+
+        #     for i in range(len(dialog) // 2):
+        #         source_ids = tokenizer.encode(text=dialog[2 * i], add_special_tokens=(i == 0))
+        #         target_ids = tokenizer.encode(text=dialog[2 * i + 1], add_special_tokens=False)
+
+        #         total_len = len(source_ids) + len(target_ids)
+        #         max_source_len = int(max_length * (len(source_ids) / total_len))
+        #         max_target_len = int(max_length * (len(target_ids) / total_len))
+
+        #         if len(source_ids) > max_source_len:
+        #             source_ids = source_ids[:max_source_len]
+        #         if len(target_ids) > max_target_len - 1:  # eos token
+        #             target_ids = target_ids[:max_target_len - 1]
+        #         if len(source_ids) > 0 and source_ids[0] == tokenizer.eos_token_id:
+        #             source_ids = source_ids[1:]
+        #         if len(target_ids) > 0 and target_ids[-1] == tokenizer.eos_token_id:
+        #             target_ids = target_ids[:-1]
+        #         if len(input_ids) + len(source_ids) + len(target_ids) + 1 > max_length:
+        #             break
+
+        #         input_ids += source_ids + target_ids + [tokenizer.eos_token_id]  # add eos token for each turn
+        #         if script_args.train_on_inputs:
+        #             labels += source_ids + target_ids + [tokenizer.eos_token_id]
+        #         else:
+        #             labels += [IGNORE_INDEX] * len(source_ids) + target_ids + [tokenizer.eos_token_id]
+
+        #     input_ids_list.append(input_ids)
+        #     attention_mask_list.append([1] * len(input_ids))
+        #     targets_list.append(labels)
+
+        # return dict(
+        #     input_ids=input_ids_list,
+        #     attention_mask=attention_mask_list,
+        #     labels=targets_list,
+        # )
+
     def preprocess_function(examples):
         """
-        Preprocessing the datasets.
-            part of code modified from https://github.com/lm-sys/FastChat
+        Preprocessing function adjusted for tool-calling conversational datasets.
+        Modified to handle human-gpt-tool-gpt conversation patterns.
         """
         input_ids_list = []
         attention_mask_list = []
         targets_list = []
-        roles = ["human", "gpt"]
+        roles = ["human", "gpt", "tool"]
 
         def get_dialog(examples):
-            system_prompts = examples.get("system_prompt", "")
-            for i, source in enumerate(examples['conversations']):
-                system_prompt = ""
-                if len(source) < 2:
+            # Handle both single examples and batches
+            conversations_list = examples['conversations'] if isinstance(examples['conversations'][0], list) else [examples['conversations']]
+            
+            for i, conversation in enumerate(conversations_list):
+                if len(conversation) < 2:
                     continue
-                data_role = source[0].get("from", "")
-                if data_role == "system":
-                    # Skip the first one if it is from system
-                    system_prompt = source[0]["value"]
-                    source = source[1:]
-                    data_role = source[0].get("from", "")
-                if data_role not in roles or data_role != roles[0]:
-                    # Skip the first one if it is not from human
-                    source = source[1:]
-                if len(source) < 2:
-                    continue
-                messages = []
-                for j, sentence in enumerate(source):
-                    data_role = sentence.get("from", "")
-                    if data_role not in roles:
-                        logger.warning(f"unknown role: {data_role}, {i}. (ignored)")
+                    
+                system_prompt = """
+                    You are MedAgent, a helpful and safe medical AI assistant designed to assist with clinical decision support, patient education, symptom checking, and medical information retrieval.
+
+                    You follow user instructions carefully and decide whether to answer directly or use available tools. If a task requires up-to-date, detailed, or structured data (e.g., symptom analysis, drug interaction check, disease information), you call a tool using a structured function call in JSON format.
+
+                    Each interaction follows this format:
+                    <question>
+                    <thoughts> [Explain your reasoning or decision to use a tool]
+                    <actions> [Call a tool if needed using JSON format]
+                    <values> [Extract and return the relevant final answer based on the tool result]
+
+                    You must:
+                    - Think step-by-step before calling a tool.
+                    - Only use tools when appropriate.
+                    - Never make up data.
+                    - Ensure safety, especially in medical advice.
+                    - Clarify uncertainties and refer to professionals if needed.
+
+                    Available tools:
+                    1. `HealthSymptomChecker`: Input symptoms, returns possible conditions.
+                    2. `DrugInteractionChecker`: Input drug list, returns interaction warnings.
+                    3. `DiseaseInfoAPI`: Input condition name, returns overview, causes, symptoms, treatments.
+                    4. `LabReferenceTool`: Input test name, returns normal ranges and interpretations.
+
+                    Examples:
+                    ---
+                    <question>
+                    What could be causing fever, joint pain, and rash in a 25-year-old woman?
+
+                    <thoughts>
+                    These symptoms could relate to a range of autoimmune or infectious diseases. Using the symptom checker will help narrow this down.
+
+                    <actions>
+                    {
+                    "tool": "HealthSymptomChecker",
+                    "inputs": {
+                        "symptoms": ["fever", "joint pain", "rash"],
+                        "age": 25,
+                        "sex": "female"
+                    }
+                    }
+
+                    <values>
+                    The most likely conditions include lupus, viral infections, or early-stage rheumatoid arthritis. Please consult a healthcare provider for confirmation.
+                    ---
+
+                    Do not make any clinical decisions yourself. Always frame your answers as informational, not diagnostic.
+
+                    """
+
+                
+                # Validate conversation structure
+                valid_conversation = True
+                for j, turn in enumerate(conversation):
+                    expected_role = None
+                    if j % 4 == 0:  # First turn should be human
+                        expected_role = "human"
+                    elif j % 4 == 1:  # Second turn should be gpt (tool call)
+                        expected_role = "gpt"
+                    elif j % 4 == 2:  # Third turn should be tool
+                        expected_role = "tool"
+                    elif j % 4 == 3:  # Fourth turn should be gpt (final response)
+                        expected_role = "gpt"
+                    
+                    if turn.get("from", "") != expected_role:
+                        valid_conversation = False
                         break
-                    if data_role == roles[j % 2]:
-                        messages.append(sentence["value"])
-                if len(messages) % 2 != 0:
+                
+                if not valid_conversation or len(conversation) % 4 != 0:
                     continue
-                # Convert the list to pairs of elements
-                history_messages = [[messages[k], messages[k + 1]] for k in range(0, len(messages), 2)]
-                if not system_prompt:
-                    system_prompt = system_prompts[i] if system_prompts else ""
-                yield prompt_template.get_dialog(history_messages, system_prompt=system_prompt)
+                    
+                # Process conversation in groups of 4 (human -> gpt -> tool -> gpt)
+                formatted_turns = []
+                for j in range(0, len(conversation), 4):
+                    if j + 3 < len(conversation):
+                        human_msg = conversation[j]["value"]
+                        gpt_tool_call = conversation[j + 1]["value"]
+                        tool_response = conversation[j + 2]["response"] if "response" in conversation[j + 2] else conversation[j + 2]["value"]
+                        gpt_final = conversation[j + 3]["value"]
+                        
+                        # Format according to your prompt template
+                        # You may need to adjust this based on your specific prompt template
+                        formatted_turns.extend([
+                            human_msg,
+                            gpt_tool_call,
+                            tool_response, 
+                            gpt_final
+                        ])
+                
+                if formatted_turns:
+                    yield formatted_turns
 
         for dialog in get_dialog(examples):
             input_ids, labels = [], []
-
-            for i in range(len(dialog) // 2):
-                source_ids = tokenizer.encode(text=dialog[2 * i], add_special_tokens=(i == 0))
-                target_ids = tokenizer.encode(text=dialog[2 * i + 1], add_special_tokens=False)
-
-                total_len = len(source_ids) + len(target_ids)
-                max_source_len = int(max_length * (len(source_ids) / total_len))
-                max_target_len = int(max_length * (len(target_ids) / total_len))
-
-                if len(source_ids) > max_source_len:
-                    source_ids = source_ids[:max_source_len]
-                if len(target_ids) > max_target_len - 1:  # eos token
-                    target_ids = target_ids[:max_target_len - 1]
-                if len(source_ids) > 0 and source_ids[0] == tokenizer.eos_token_id:
-                    source_ids = source_ids[1:]
-                if len(target_ids) > 0 and target_ids[-1] == tokenizer.eos_token_id:
-                    target_ids = target_ids[:-1]
-                if len(input_ids) + len(source_ids) + len(target_ids) + 1 > max_length:
+            
+            # Process in groups of 4 turns (human -> gpt_tool_call -> tool_response -> gpt_final)
+            for i in range(0, len(dialog), 4):
+                if i + 3 >= len(dialog):
                     break
-
-                input_ids += source_ids + target_ids + [tokenizer.eos_token_id]  # add eos token for each turn
+                    
+                # Tokenize each part of the 4-turn sequence
+                human_ids = tokenizer.encode(text=dialog[i], add_special_tokens=(i == 0))
+                gpt_tool_call_ids = tokenizer.encode(text=dialog[i + 1], add_special_tokens=False)
+                tool_response_ids = tokenizer.encode(text=dialog[i + 2], add_special_tokens=False)
+                gpt_final_ids = tokenizer.encode(text=dialog[i + 3], add_special_tokens=False)
+                
+                # Calculate total length for this 4-turn sequence
+                total_len = len(human_ids) + len(gpt_tool_call_ids) + len(tool_response_ids) + len(gpt_final_ids)
+                
+                # Proportional truncation if needed
+                if total_len > max_length // 2:  # Leave room for multiple turns
+                    max_human_len = int(max_length * 0.3)
+                    max_tool_call_len = int(max_length * 0.3)
+                    max_tool_resp_len = int(max_length * 0.2)
+                    max_final_len = int(max_length * 0.2)
+                    
+                    if len(human_ids) > max_human_len:
+                        human_ids = human_ids[:max_human_len]
+                    if len(gpt_tool_call_ids) > max_tool_call_len:
+                        gpt_tool_call_ids = gpt_tool_call_ids[:max_tool_call_len]
+                    if len(tool_response_ids) > max_tool_resp_len:
+                        tool_response_ids = tool_response_ids[:max_tool_resp_len]
+                    if len(gpt_final_ids) > max_final_len - 1:  # Reserve space for EOS
+                        gpt_final_ids = gpt_final_ids[:max_final_len - 1]
+                
+                # Check if adding this sequence would exceed max_length
+                sequence_len = len(human_ids) + len(gpt_tool_call_ids) + len(tool_response_ids) + len(gpt_final_ids) + 4  # +4 for EOS tokens
+                if len(input_ids) + sequence_len > max_length:
+                    break
+                
+                # Add the 4-turn sequence
+                input_ids.extend(human_ids + [tokenizer.eos_token_id])
+                input_ids.extend(gpt_tool_call_ids + [tokenizer.eos_token_id])
+                input_ids.extend(tool_response_ids + [tokenizer.eos_token_id])
+                input_ids.extend(gpt_final_ids + [tokenizer.eos_token_id])
+                
+                # Create labels - only train on GPT responses (tool calls and final responses)
                 if script_args.train_on_inputs:
-                    labels += source_ids + target_ids + [tokenizer.eos_token_id]
+                    # Train on everything
+                    labels.extend(human_ids + [tokenizer.eos_token_id])
+                    labels.extend(gpt_tool_call_ids + [tokenizer.eos_token_id])
+                    labels.extend(tool_response_ids + [tokenizer.eos_token_id])
+                    labels.extend(gpt_final_ids + [tokenizer.eos_token_id])
                 else:
-                    labels += [IGNORE_INDEX] * len(source_ids) + target_ids + [tokenizer.eos_token_id]
+                    # Only train on GPT responses (tool calls and final answers)
+                    labels.extend([IGNORE_INDEX] * (len(human_ids) + 1))  # Ignore human input
+                    labels.extend(gpt_tool_call_ids + [tokenizer.eos_token_id])  # Learn tool calling
+                    labels.extend([IGNORE_INDEX] * (len(tool_response_ids) + 1))  # Ignore tool responses
+                    labels.extend(gpt_final_ids + [tokenizer.eos_token_id])  # Learn final response
 
-            input_ids_list.append(input_ids)
-            attention_mask_list.append([1] * len(input_ids))
-            targets_list.append(labels)
+            if input_ids:  # Only add non-empty sequences
+                input_ids_list.append(input_ids)
+                attention_mask_list.append([1] * len(input_ids))
+                targets_list.append(labels)
 
+        print(f"Processed {len(input_ids_list)} sequences.")
         return dict(
             input_ids=input_ids_list,
             attention_mask=attention_mask_list,
