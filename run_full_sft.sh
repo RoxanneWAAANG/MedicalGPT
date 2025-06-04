@@ -1,9 +1,10 @@
 # python3 supervised_finetuning.py \
+# --model_name_or_path /home/jack/Projects/yixin-llm/yixin-llm-data/MedicalGPT/weights/Qwen2.5-VL-7B-Instruct \
 CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node 2 supervised_finetuning.py \
     --model_name_or_path Qwen/Qwen2.5-0.5B-Instruct \
-    --train_file_dir /home/jack/Projects/yixin-llm/MedicalGPT/tool_instruct_all \
-    --validation_file_dir /home/jack/Projects/yixin-llm/MedicalGPT/tool_instruct_all \
-    --cache_dir ./model_v2 \
+    --train_file_dir ./new_tool_instruct/train \
+    --validation_file_dir ./new_tool_instruct/val \
+    --cache_dir ./model_v0 \
     --device_map "cuda" \
     --use_peft True \
     --lora_rank 8 \
@@ -11,7 +12,7 @@ CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node 2 supervised_finetuning.py \
     --lora_dropout 0.05 \
     --per_device_train_batch_size 16 \
     --do_train \
-    --num_train_epochs 3 \
+    --num_train_epochs 10 \
     --per_device_eval_batch_size 16 \
     --max_train_samples -1 \
     --learning_rate 3e-5 \
@@ -26,7 +27,7 @@ CUDA_VISIBLE_DEVICES=0,1 torchrun --nproc_per_node 2 supervised_finetuning.py \
     --save_total_limit 3 \
     --gradient_accumulation_steps 8 \
     --preprocessing_num_workers 10 \
-    --output_dir outputs-full-sft-v2 \
+    --output_dir outputs-full-sft-v0 \
     --overwrite_output_dir \
     --ddp_timeout 30000 \
     --logging_first_step True \
