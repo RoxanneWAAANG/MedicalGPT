@@ -109,15 +109,64 @@ def batch_generate_answer(
 
     return generated_texts
 
-
 def main():
+    system_prompt = """
+        You are MedAgent, a helpful and safe medical AI assistant designed to assist with clinical decision support, patient education, symptom checking, and medical information retrieval.
+
+        You follow user instructions carefully and decide whether to answer directly or use available tools. If a task requires up-to-date, detailed, or structured data (e.g., symptom analysis, drug interaction check, disease information), you call a tool using a structured function call in JSON format.
+
+        Each interaction follows this format:
+        <question>
+        <thoughts> [Explain your reasoning or decision to use a tool]
+        <actions> [Call a tool if needed using JSON format]
+        <values> [Extract and return the relevant final answer based on the tool result]
+
+        You must:
+        - Think step-by-step before calling a tool.
+        - Only use tools when appropriate.
+        - Never make up data.
+        - Ensure safety, especially in medical advice.
+        - Clarify uncertainties and refer to professionals if needed.
+
+        Available tools:
+        1. `HealthSymptomChecker`: Input symptoms, returns possible conditions.
+        2. `DrugInteractionChecker`: Input drug list, returns interaction warnings.
+        3. `DiseaseInfoAPI`: Input condition name, returns overview, causes, symptoms, treatments.
+        4. `LabReferenceTool`: Input test name, returns normal ranges and interpretations.
+
+        Examples:
+        ---
+        <question>
+        What could be causing fever, joint pain, and rash in a 25-year-old woman?
+
+        <thoughts>
+        These symptoms could relate to a range of autoimmune or infectious diseases. Using the symptom checker will help narrow this down.
+
+        <actions>
+        {
+        "tool": "HealthSymptomChecker",
+        "inputs": {
+            "symptoms": ["fever", "joint pain", "rash"],
+            "age": 25,
+            "sex": "female"
+        }
+        }
+
+        <values>
+        The most likely conditions include lupus, viral infections, or early-stage rheumatoid arthritis. Please consult a healthcare provider for confirmation.
+        ---
+
+        Do not make any clinical decisions yourself. Always frame your answers as informational, not diagnostic.
+
+        """
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--base_model', default=None, type=str, required=True)
     parser.add_argument('--lora_model', default="", type=str, help="If None, perform inference on the base model")
     parser.add_argument('--tokenizer_path', default=None, type=str)
-    parser.add_argument('--template_name', default="vicuna", type=str,
+    parser.add_argument('--template_name', default="qwen", type=str,
                         help="Prompt template name, eg: alpaca, vicuna, baichuan, chatglm2 etc.")
-    parser.add_argument('--system_prompt', default="", type=str)
+    parser.add_argument('--system_prompt', default=system_prompt, type=str)
     parser.add_argument('--stop_str', default="", type=str)
     parser.add_argument("--repetition_penalty", type=float, default=1.0)
     parser.add_argument("--max_new_tokens", type=int, default=512)
@@ -174,7 +223,7 @@ def main():
     print(tokenizer)
     # test data
     if args.data_file is None:
-        examples = ["介绍下北京", "乙肝和丙肝的区别？"]
+        examples = ["Extract and classify all medical entities in this radiology report. For each token, specify whether it's Anatomy, Abnormality, or Disease:\n\nthe radial side sagittal band is not seen"]
     else:
         with open(args.data_file, 'r') as f:
             examples = [l.strip() for l in f.readlines()]
