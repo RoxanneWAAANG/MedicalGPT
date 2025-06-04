@@ -130,9 +130,15 @@ dmypy.json
 
 .idea/
 model/
+model_v0/
+model_v1/
 model_v2/
 runs/
+outputs-full-sft-v0
 outputs-full-sft-v1
 outputs-full-sft-v2
+new_tool_instruct/rate_ner_dataset.jsonl
+new_tool_instruct/train
 tool_instruct
 tool_instruct_all
+=0.13.0
